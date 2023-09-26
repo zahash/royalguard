@@ -1,0 +1,13 @@
+[package]
+name = "royalguard"
+version = "0.1.0"
+edition = "2021"
+authors = ["Zahash <zahash.z@gmail.com>"]
+description = "Royal Guard!"
+license = "MIT"
+repository = "https://github.com/zahash/royalguard"
+
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
