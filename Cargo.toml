@@ -8,6 +8,10 @@ license = "MIT"
 repository = "https://github.com/zahash/royalguard"
 
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
+regex = { version = "1" }
+lazy_static = { version = "1" }
+inquire = { version = "0.6.2" }
+
+[dev-dependencies]
+pretty_assertions = { version = "1" }
