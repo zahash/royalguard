@@ -1,5 +1,7 @@
 use std::{collections::HashMap, fmt::Display};
 
+use uuid::Uuid;
+
 use crate::lex::*;
 use crate::parse::*;
 
@@ -7,12 +9,11 @@ use crate::parse::*;
 pub enum EvaluatorError<'text> {
     LexError(LexError),
     ParseError(ParseError<'text>),
-    IncompleteParsing(usize),
 }
 
 #[derive(Debug, Clone)]
 pub struct Data {
-    pub id: usize,
+    pub id: Uuid,
     pub name: String,
     pub user: Option<String>,
     pub pass: Option<String>,
@@ -20,14 +21,12 @@ pub struct Data {
 }
 
 pub struct State {
-    autoid: usize,
     data: HashMap<String, Data>,
 }
 
 impl<'text> State {
     pub fn new() -> Self {
         Self {
-            autoid: 0,
             data: HashMap::new(),
         }
     }
@@ -46,16 +45,12 @@ impl<'text> State {
     }
 
     pub fn set(&mut self, name: &'text str, assignments: Vec<Assign<'text>>) {
-        let data = self.data.entry(name.to_string()).or_insert({
-            let data = Data {
-                id: self.autoid,
-                name: name.to_string(),
-                user: None,
-                pass: None,
-                url: None,
-            };
-            self.autoid += 1;
-            data
+        let data = self.data.entry(name.to_string()).or_insert(Data {
+            id: Uuid::new_v4(),
+            name: name.to_string(),
+            user: None,
+            pass: None,
+            url: None,
         });
 
         for Assign { attr, value } in assignments {
@@ -76,13 +71,9 @@ impl<'text> State {
 
 pub fn eval<'text>(text: &'text str, state: &mut State) -> Result<(), EvaluatorError<'text>> {
     let tokens = lex(text)?;
-    let (expr, pos) = parse(&tokens, 0)?;
+    let cmd = parse(&tokens)?;
 
-    if pos < tokens.len() {
-        return Err(EvaluatorError::IncompleteParsing(pos));
-    }
-
-    match expr {
+    match cmd {
         Cmd::Set { name, assignments } => state.set(name, assignments),
         Cmd::Del { name } => match state.del(name) {
             Some(deleted) => println!("{}", deleted),

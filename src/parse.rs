@@ -4,8 +4,7 @@ use regex::Regex;
 
 use crate::lex::*;
 
-// <cmd> ::= add <value> {<assign>}*
-//         | set <value> {<assign>}*
+// <cmd> ::= set <value> {<assign>}*
 //         | del <value>
 //         | show <query>
 //         | history <value>
@@ -39,13 +38,15 @@ pub enum ParseError<'text> {
     ExpectedOneOf(Vec<Token<'static>>, usize),
     InvalidRegex(usize),
     DuplicateAssignments(&'text str, usize),
+    IncompleteParse(usize),
 }
 
-pub fn parse<'text>(
-    tokens: &[Token<'text>],
-    pos: usize,
-) -> Result<(Cmd<'text>, usize), ParseError<'text>> {
-    parse_cmd(tokens, pos)
+pub fn parse<'text>(tokens: &[Token<'text>]) -> Result<Cmd<'text>, ParseError<'text>> {
+    let (cmd, pos) = parse_cmd(&tokens, 0)?;
+    match pos < tokens.len() {
+        true => Err(ParseError::IncompleteParse(pos).into()),
+        false => Ok(cmd),
+    }
 }
 
 pub enum Cmd<'text> {
@@ -596,7 +597,6 @@ mod tests {
     #[test]
     fn test_cmd_show() {
         check!(parse_cmd, "show all");
-        check!(parse_cmd, "show 'gmail'");
         check!(parse_cmd, "show 'gmail'");
         check!(
             parse_cmd,
