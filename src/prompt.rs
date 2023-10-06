@@ -24,7 +24,7 @@ pub fn run() {
                     match eval(&line, &mut state) {
                         Ok(d) => {
                             for data in d {
-                                println!("{:?}", data);
+                                println!("{}", data);
                             }
                         }
                         Err(e) => eprintln!("*** {:?}", e),

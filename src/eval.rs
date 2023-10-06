@@ -186,7 +186,17 @@ impl<'text> Cond<'text> for Is<'text> {
 
 impl<'text> Display for Data {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "'{}'", self.name)?;
+        if let Some(user) = &self.user {
+            write!(f, "  user='{}'", user)?;
+        }
+        if let Some(pass) = &self.pass {
+            write!(f, "  pass='{}'", pass)?;
+        }
+        if let Some(url) = &self.url {
+            write!(f, "  url='{}'", url)?;
+        }
+        Ok(())
     }
 }
 
