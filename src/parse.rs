@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, fmt::Display};
 
 use regex::Regex;
 
@@ -16,7 +16,7 @@ use crate::lex::*;
 // <query> ::= <or> | <value> | all
 // <or> ::= <and> | <or> or <and>
 // <and> ::= <filter> | <and> and <filter>
-// <filter> ::= <contains> | <matches> | <is>
+// <filter> ::= ( <query> ) | <contains> | <matches> | <is>
 // <contains> ::= <attr> contains <value>
 // <matches> ::= <attr> matches <value>
 // <is> ::= <attr> is <value>
@@ -249,31 +249,35 @@ pub enum Filter<'text> {
     Contains(Contains<'text>),
     Matches(Matches<'text>),
     Cmp(Is<'text>),
-    Name(&'text str),
+    Parens(Box<Query<'text>>),
 }
 
 fn parse_filter<'text>(
     tokens: &[Token<'text>],
     pos: usize,
 ) -> Result<(Filter<'text>, usize), ParseError<'text>> {
-    fn parse_name<'text>(
+    fn parse_parens<'text>(
         tokens: &[Token<'text>],
         pos: usize,
     ) -> Result<(Filter<'text>, usize), ParseError<'text>> {
-        match tokens.get(pos) {
-            Some(Token::Value(name)) => Ok((Filter::Name(name), pos + 1)),
-            _ => Err(ParseError::ExpectedValue(pos)),
-        }
+        let Some(Token::Symbol("(")) = tokens.get(pos) else {
+            return Err(ParseError::Expected(Token::Symbol("("), pos));
+        };
+        let (query, pos) = parse_query(tokens, pos + 1)?;
+        let Some(Token::Symbol(")")) = tokens.get(pos) else {
+            return Err(ParseError::Expected(Token::Symbol(")"), pos));
+        };
+        Ok((Filter::Parens(Box::new(query)), pos + 1))
     }
 
     combine_parsers(
         tokens,
         pos,
         &[
+            Box::new(parse_parens),
             Box::new(parse_contains),
             Box::new(parse_matches),
             Box::new(parse_is),
-            Box::new(parse_name),
         ],
         "cannot parse filter",
     )
@@ -406,6 +410,96 @@ where
     }
 }
 
+impl<'text> Display for Cmd<'text> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Cmd::Set { name, assignments } => {
+                write!(f, "set '{}' ", name)?;
+                write_arr(f, assignments, " ")
+            }
+            Cmd::Del { name } => write!(f, "del '{}'", name),
+            Cmd::Show(q) => write!(f, "show {}", q),
+            Cmd::History { name } => write!(f, "history {}", name),
+        }
+    }
+}
+
+impl<'text> Display for Assign<'text> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} = {}", self.attr, self.value)
+    }
+}
+
+impl<'text> Display for Query<'text> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Query::Or(o) => write!(f, "{}", o),
+            Query::All => write!(f, "all"),
+        }
+    }
+}
+
+impl<'text> Display for Or<'text> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Or::And(a) => write!(f, "{}", a),
+            Or::Or(lhs, rhs) => write!(f, "({} or {})", lhs, rhs),
+        }
+    }
+}
+
+impl<'text> Display for And<'text> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            And::Filter(x) => write!(f, "{}", x),
+            And::And(lhs, rhs) => write!(f, "({} and {})", lhs, rhs),
+        }
+    }
+}
+
+impl<'text> Display for Filter<'text> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Filter::Contains(c) => write!(f, "{}", c),
+            Filter::Matches(m) => write!(f, "{}", m),
+            Filter::Cmp(c) => write!(f, "{}", c),
+            Filter::Parens(q) => write!(f, "({})", q),
+        }
+    }
+}
+
+impl<'text> Display for Contains<'text> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} contains '{}'", self.attr, self.substr)
+    }
+}
+
+impl<'text> Display for Matches<'text> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} matches '{}'", self.attr, self.pat)
+    }
+}
+
+impl<'text> Display for Is<'text> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} is '{}'", self.attr, self.value)
+    }
+}
+
+fn write_arr<T>(f: &mut std::fmt::Formatter<'_>, arr: &[T], sep: &str) -> std::fmt::Result
+where
+    T: Display,
+{
+    if let Some(item) = arr.get(0) {
+        write!(f, "{}", item)?;
+        for item in &arr[1..] {
+            write!(f, "{}{}", sep, item)?;
+        }
+    }
+
+    Ok(())
+}
+
 impl<'text> From<And<'text>> for Or<'text> {
     fn from(value: And<'text>) -> Self {
         Or::And(value)
@@ -439,6 +533,7 @@ impl<'text> From<Is<'text>> for Filter<'text> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pretty_assertions::assert_eq;
 
     macro_rules! check {
         ($f:ident, $src:expr, $expected:expr) => {
@@ -472,8 +567,29 @@ mod tests {
     }
 
     #[test]
+    fn test_filter() {
+        // check!(parse_filter, "url contains 'github'");
+        // check!(parse_filter, "user matches '[A-Z]+'");
+        // check!(parse_filter, "user is 'zahash'");
+
+        check!(
+            parse_filter,
+            "(url contains 'github' and user matches '[A-Z]+')"
+        );
+    }
+
+    #[test]
+    fn test_contains() {
+        check!(parse_contains, "url contains 'github'");
+    }
+
+    #[test]
+    fn test_matches() {
+        check!(parse_matches, "user matches '[A-Z]+'");
+    }
+
+    #[test]
     fn test_is() {
-        // check!(parse_is, "");
-        // parse_is(tokens, pos)
+        check!(parse_is, "user is 'zahash'");
     }
 }

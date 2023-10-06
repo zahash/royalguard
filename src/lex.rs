@@ -49,8 +49,10 @@ pub fn lex(text: &str) -> Result<Vec<Token>, LexError> {
 
 fn lex_token(text: &str, pos: usize) -> Result<(Token, usize), LexError> {
     lex_keyword(text, pos)
-        .or(lex_attr(text, pos))
-        .or(lex_equals(text, pos))
+    .or(lex_symbol(text, pos, "="))
+    .or(lex_symbol(text, pos, "("))
+    .or(lex_symbol(text, pos, ")"))
+    .or(lex_attr(text, pos))
         .or(lex_value(text, pos))
         .ok_or(LexError::InvalidToken { pos })
 }
@@ -77,10 +79,6 @@ fn lex_value(text: &str, pos: usize) -> Option<(Token, usize)> {
     Some((Token::Value(token), pos))
 }
 
-fn lex_equals(text: &str, pos: usize) -> Option<(Token, usize)> {
-    Some((Token::Symbol("="), lex_with_prefix(text, pos, "=")?))
-}
-
 fn lex_with_pattern<'text>(
     text: &'text str,
     pos: usize,
@@ -99,11 +97,14 @@ fn lex_with_pattern<'text>(
     None
 }
 
-fn lex_with_prefix<'text>(text: &'text str, pos: usize, prefix: &str) -> Option<usize> {
-    match &text[pos..].starts_with(prefix) {
-        true => Some(pos + prefix.len()),
-        false => None,
+fn lex_symbol(text: &str, pos: usize, symbol: &'static str) -> Option<(Token<'static>, usize)> {
+    if let Some(substr) = text.get(pos..) {
+        if substr.starts_with(symbol) {
+            return Some((Token::Symbol(symbol), pos + symbol.len()));
+        }
     }
+
+    None
 }
 
 #[cfg(test)]
@@ -117,7 +118,7 @@ mod tests {
         let src = r#"
         set del show history all prev and or contains matches is
         name user pass url
-        ='🦀🦀🦀''N' look_mom   no_spaces   'oh wow spaces'
+        (=)'🦀🦀🦀''N' look_mom   no_spaces   'oh wow spaces'
         "#;
 
         use Token::*;
@@ -140,7 +141,9 @@ mod tests {
                     Attr("user"),
                     Attr("pass"),
                     Attr("url"),
+                    Symbol("("),
                     Symbol("="),
+                    Symbol(")"),
                     Value("🦀🦀🦀"),
                     Value("N"),
                     Value("look_mom"),

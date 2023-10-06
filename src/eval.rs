@@ -102,6 +102,15 @@ pub trait Cond<'text> {
     fn test(&self, data: &Data) -> bool;
 }
 
+impl<'text> Cond<'text> for Query<'text> {
+    fn test(&self, data: &Data) -> bool {
+        match self {
+            Query::Or(cond) => cond.test(data),
+            Query::All => true,
+        }
+    }
+}
+
 impl<'text> Cond<'text> for Or<'text> {
     fn test(&self, data: &Data) -> bool {
         match self {
@@ -126,7 +135,7 @@ impl<'text> Cond<'text> for Filter<'text> {
             Filter::Contains(cond) => cond.test(data),
             Filter::Matches(cond) => cond.test(data),
             Filter::Cmp(cond) => cond.test(data),
-            Filter::Name(name) => &data.name == name,
+            Filter::Parens(q) => q.test(data),
         }
     }
 }
