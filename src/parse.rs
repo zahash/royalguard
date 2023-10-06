@@ -36,8 +36,16 @@ pub enum ParseError<'text> {
     ExpectedAttr(usize),
     ExpectedValue(usize),
     Expected(Token<'static>, usize),
+    ExpectedOneOf(Vec<Token<'static>>, usize),
     InvalidRegex(usize),
     DuplicateAssignments(&'text str, usize),
+}
+
+pub fn parse<'text>(
+    tokens: &[Token<'text>],
+    pos: usize,
+) -> Result<(Cmd<'text>, usize), ParseError<'text>> {
+    parse_cmd(tokens, pos)
 }
 
 pub enum Cmd<'text> {
@@ -52,13 +60,6 @@ pub enum Cmd<'text> {
     History {
         name: &'text str,
     },
-}
-
-pub fn parse<'text>(
-    tokens: &[Token<'text>],
-    pos: usize,
-) -> Result<(Cmd<'text>, usize), ParseError<'text>> {
-    parse_cmd(tokens, pos)
 }
 
 fn parse_cmd<'text>(
@@ -116,8 +117,11 @@ fn parse_cmd_del<'text>(
     tokens: &[Token<'text>],
     pos: usize,
 ) -> Result<(Cmd<'text>, usize), ParseError<'text>> {
-    let Some(Token::Keyword("del")) = tokens.get(pos) else {
-        return Err(ParseError::Expected(Token::Keyword("del"), pos));
+    let (Some(Token::Keyword("del")) | Some(Token::Keyword("delete"))) = tokens.get(pos) else {
+        return Err(ParseError::ExpectedOneOf(
+            vec![Token::Keyword("del"), Token::Keyword("delete")],
+            pos,
+        ));
     };
 
     let Some(Token::Value(name)) = tokens.get(pos + 1) else {
@@ -181,6 +185,7 @@ fn parse_assign<'text>(
 
 pub enum Query<'text> {
     Or(Or<'text>),
+    Name(&'text str),
     All,
 }
 
@@ -190,6 +195,7 @@ fn parse_query<'text>(
 ) -> Result<(Query<'text>, usize), ParseError<'text>> {
     match tokens.get(pos) {
         Some(Token::Keyword("all")) => Ok((Query::All, pos + 1)),
+        Some(Token::Value(name)) => Ok((Query::Name(name), pos + 1)),
         _ => {
             let (or, pos) = parse_or(tokens, pos)?;
             Ok((Query::Or(or), pos))
@@ -210,7 +216,7 @@ fn parse_or<'text>(
     let mut lhs = lhs.into();
     while let Some(token) = tokens.get(pos) {
         match token {
-            Token::Symbol("or") => {
+            Token::Keyword("or") => {
                 let (rhs, next_pos) = parse_and(tokens, pos + 1)?;
                 pos = next_pos;
                 lhs = Or::Or(Box::new(lhs), rhs);
@@ -234,7 +240,7 @@ fn parse_and<'text>(
     let mut lhs = lhs.into();
     while let Some(token) = tokens.get(pos) {
         match token {
-            Token::Symbol("and") => {
+            Token::Keyword("and") => {
                 let (rhs, next_pos) = parse_filter(tokens, pos + 1)?;
                 pos = next_pos;
                 lhs = And::And(Box::new(lhs), rhs);
@@ -414,8 +420,12 @@ impl<'text> Display for Cmd<'text> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Cmd::Set { name, assignments } => {
-                write!(f, "set '{}' ", name)?;
-                write_arr(f, assignments, " ")
+                write!(f, "set '{}'", name)?;
+                if !assignments.is_empty() {
+                    write!(f, " ")?;
+                    write_arr(f, assignments, " ")?;
+                }
+                Ok(())
             }
             Cmd::Del { name } => write!(f, "del '{}'", name),
             Cmd::Show(q) => write!(f, "show {}", q),
@@ -426,7 +436,7 @@ impl<'text> Display for Cmd<'text> {
 
 impl<'text> Display for Assign<'text> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} = {}", self.attr, self.value)
+        write!(f, "{} = '{}'", self.attr, self.value)
     }
 }
 
@@ -434,6 +444,7 @@ impl<'text> Display for Query<'text> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Query::Or(o) => write!(f, "{}", o),
+            Query::Name(name) => write!(f, "'{}'", name),
             Query::All => write!(f, "all"),
         }
     }
@@ -567,29 +578,86 @@ mod tests {
     }
 
     #[test]
-    fn test_filter() {
-        // check!(parse_filter, "url contains 'github'");
-        // check!(parse_filter, "user matches '[A-Z]+'");
-        // check!(parse_filter, "user is 'zahash'");
-
+    fn test_cmd_set() {
         check!(
-            parse_filter,
-            "(url contains 'github' and user matches '[A-Z]+')"
+            parse_cmd,
+            "set 'gmail' user = 'zahash' pass = 'supersecretpass' url = 'mail.google.com'"
+        );
+
+        check!(parse_cmd, "set 'gmail'");
+    }
+
+    #[test]
+    fn test_cmd_del() {
+        check!(parse_cmd, "del 'gmail'");
+        check!(parse_cmd, "delete 'gmail'", "del 'gmail'");
+    }
+
+    #[test]
+    fn test_cmd_show() {
+        check!(parse_cmd, "show all");
+        check!(parse_cmd, "show 'gmail'");
+        check!(parse_cmd, "show 'gmail'");
+        check!(
+            parse_cmd,
+            "show user is 'a' or user contains 'a' and user matches 'a'",
+            "show (user is 'a' or (user contains 'a' and user matches 'a'))"
+        );
+        check!(
+            parse_cmd,
+            "show user is 'a' and user contains 'a' or user matches 'a'",
+            "show ((user is 'a' and user contains 'a') or user matches 'a')"
         );
     }
 
     #[test]
-    fn test_contains() {
-        check!(parse_contains, "url contains 'github'");
+    fn test_query() {
+        check!(parse_query, "all");
+        check!(
+            parse_query,
+            "user is 'a' or user is 'a' and user is 'a'",
+            "(user is 'a' or (user is 'a' and user is 'a'))"
+        );
+        check!(
+            parse_query,
+            "user is 'a' and user is 'a' or user is 'a'",
+            "((user is 'a' and user is 'a') or user is 'a')"
+        );
     }
 
     #[test]
-    fn test_matches() {
-        check!(parse_matches, "user matches '[A-Z]+'");
+    fn test_or() {
+        check!(
+            parse_or,
+            "user is 'zahash' or url contains 'github'",
+            "(user is 'zahash' or url contains 'github')"
+        );
+        check!(
+            parse_or,
+            "user is 'zahash' or url contains 'github' or url matches 'https.+'",
+            "((user is 'zahash' or url contains 'github') or url matches 'https.+')"
+        );
     }
 
     #[test]
-    fn test_is() {
-        check!(parse_is, "user is 'zahash'");
+    fn test_and() {
+        check!(
+            parse_and,
+            "user is 'zahash' and url contains 'github'",
+            "(user is 'zahash' and url contains 'github')"
+        );
+        check!(
+            parse_and,
+            "user is 'zahash' and url contains 'github' and url matches 'https.+'",
+            "((user is 'zahash' and url contains 'github') and url matches 'https.+')"
+        );
+    }
+
+    #[test]
+    fn test_filter() {
+        check!(parse_filter, "url contains 'github'");
+        check!(parse_filter, "user matches '[A-Z]+'");
+        check!(parse_filter, "user is 'zahash'");
+        check!(parse_filter, "(user is 'zahash')");
     }
 }

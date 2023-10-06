@@ -11,9 +11,10 @@ pub enum Token<'text> {
 
 lazy_static! {
     static ref KEYWORD_REGEX: Regex =
-        Regex::new(r#"^(set|del|show|history|all|prev|and|or|contains|matches|is)\b"#).unwrap();
+        Regex::new(r#"^(set|del|delete|show|history|all|prev|and|or|contains|matches|is)\b"#)
+            .unwrap();
     static ref ATTR_REGEX: Regex = Regex::new(r#"^(name|user|pass|url)\b"#).unwrap();
-    static ref VALUE_REGEX: Regex = Regex::new(r#"^([^'\n\s\t]+|'[^'\n]+')"#).unwrap();
+    static ref VALUE_REGEX: Regex = Regex::new(r#"^([^'\n\s\t\(\)]+|'[^'\n]+')"#).unwrap();
 }
 
 #[derive(Debug)]
@@ -49,10 +50,10 @@ pub fn lex(text: &str) -> Result<Vec<Token>, LexError> {
 
 fn lex_token(text: &str, pos: usize) -> Result<(Token, usize), LexError> {
     lex_keyword(text, pos)
-    .or(lex_symbol(text, pos, "="))
-    .or(lex_symbol(text, pos, "("))
-    .or(lex_symbol(text, pos, ")"))
-    .or(lex_attr(text, pos))
+        .or(lex_symbol(text, pos, "="))
+        .or(lex_symbol(text, pos, "("))
+        .or(lex_symbol(text, pos, ")"))
+        .or(lex_attr(text, pos))
         .or(lex_value(text, pos))
         .ok_or(LexError::InvalidToken { pos })
 }
@@ -116,9 +117,10 @@ mod tests {
     #[test]
     fn test_all() {
         let src = r#"
-        set del show history all prev and or contains matches is
+        set del delete show history all prev and or contains matches is
         name user pass url
         (=)'🦀🦀🦀''N' look_mom   no_spaces   'oh wow spaces'
+        (zahash)('zahash')
         "#;
 
         use Token::*;
@@ -128,6 +130,7 @@ mod tests {
                 vec![
                     Keyword("set"),
                     Keyword("del"),
+                    Keyword("delete"),
                     Keyword("show"),
                     Keyword("history"),
                     Keyword("all"),
@@ -149,6 +152,12 @@ mod tests {
                     Value("look_mom"),
                     Value("no_spaces"),
                     Value("oh wow spaces"),
+                    Symbol("("),
+                    Value("zahash"),
+                    Symbol(")"),
+                    Symbol("("),
+                    Value("zahash"),
+                    Symbol(")"),
                 ],
                 tokens
             ),

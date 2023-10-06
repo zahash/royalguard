@@ -35,6 +35,7 @@ impl<'text> State {
     pub fn get(&self, query: Query<'text>) -> Vec<Data> {
         match query {
             Query::All => self.data.values().cloned().collect(),
+            Query::Name(name) => self.data.get(name).into_iter().cloned().collect(),
             Query::Or(cond) => self
                 .data
                 .values()
@@ -106,6 +107,7 @@ impl<'text> Cond<'text> for Query<'text> {
     fn test(&self, data: &Data) -> bool {
         match self {
             Query::Or(cond) => cond.test(data),
+            Query::Name(name) => data.name == *name,
             Query::All => true,
         }
     }
