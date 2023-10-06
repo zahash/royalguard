@@ -69,25 +69,22 @@ impl<'text> State {
     }
 }
 
-pub fn eval<'text>(text: &'text str, state: &mut State) -> Result<(), EvaluatorError<'text>> {
+pub fn eval<'text>(
+    text: &'text str,
+    state: &mut State,
+) -> Result<Vec<Data>, EvaluatorError<'text>> {
     let tokens = lex(text)?;
     let cmd = parse(&tokens)?;
 
     match cmd {
-        Cmd::Set { name, assignments } => state.set(name, assignments),
-        Cmd::Del { name } => match state.del(name) {
-            Some(deleted) => println!("{}", deleted),
-            None => println!("**not found"),
-        },
-        Cmd::Show(query) => {
-            for data in state.get(query) {
-                println!("{}", data)
-            }
+        Cmd::Set { name, assignments } => {
+            state.set(name, assignments);
+            Ok(vec![])
         }
+        Cmd::Del { name } => Ok(state.del(name).into_iter().collect()),
+        Cmd::Show(query) => Ok(state.get(query)),
         Cmd::History { name: _ } => unimplemented!("history feature coming soon"),
-    };
-
-    Ok(())
+    }
 }
 
 pub trait Cond<'text> {
