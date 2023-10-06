@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use regex::Regex;
 
-use crate::Token;
+use crate::lex::*;
 
 // <cmd> ::= add <value> {<assign>}*
 //         | set <value> {<assign>}*
@@ -13,13 +13,13 @@ use crate::Token;
 // <assign> ::= <attr> = <value>
 // <attr> ::= user | pass | url
 
-// <query> ::= <or> | all
+// <query> ::= <or> | <value> | all
 // <or> ::= <and> | <or> or <and>
 // <and> ::= <filter> | <and> and <filter>
-// <filter> ::= <contains> | <matches> | <cmp> | <value>
+// <filter> ::= <contains> | <matches> | <is>
 // <contains> ::= <attr> contains <value>
 // <matches> ::= <attr> matches <value>
-// <cmp> ::= <attr> is <value>
+// <is> ::= <attr> is <value>
 
 // add 'some name with spaces' user=zahash pass=asdf url='https://asdf.com'
 // set 'some name with spaces' user=zahash.z
@@ -210,7 +210,7 @@ fn parse_or<'text>(
     let mut lhs = lhs.into();
     while let Some(token) = tokens.get(pos) {
         match token {
-            Token::Symbol("||") => {
+            Token::Symbol("or") => {
                 let (rhs, next_pos) = parse_and(tokens, pos + 1)?;
                 pos = next_pos;
                 lhs = Or::Or(Box::new(lhs), rhs);
@@ -433,5 +433,47 @@ impl<'text> From<Matches<'text>> for Filter<'text> {
 impl<'text> From<Is<'text>> for Filter<'text> {
     fn from(value: Is<'text>) -> Self {
         Filter::Cmp(value)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    macro_rules! check {
+        ($f:ident, $src:expr, $expected:expr) => {
+            let tokens = lex($src).expect("** LEX ERROR");
+            let (stmt, pos) = $f(&tokens, 0).expect("** Unable to parse statement");
+            assert_eq!(pos, tokens.len(), "** Unable to parse all Tokens\n{}", stmt);
+            let stmt = format!("{}", stmt);
+            assert_eq!($expected, stmt);
+        };
+        ($f:ident, $src:expr) => {
+            check!($f, $src, $src)
+        };
+    }
+
+    macro_rules! check_ast {
+        ($f:ident, $src:expr, $expected:expr) => {
+            let tokens = lex($src).expect("** LEX ERROR");
+            let (stmt, pos) = $f(&tokens, 0).expect("** Unable to parse statement");
+            assert_eq!(pos, tokens.len());
+            assert_eq!($expected, stmt);
+        };
+    }
+
+    macro_rules! ast {
+        ($f:ident, $src:expr) => {{
+            let tokens = lex($src).expect("** LEX ERROR");
+            let (stmt, pos) = $f(&tokens, 0).expect("** Unable to parse statement");
+            assert_eq!(pos, tokens.len());
+            stmt
+        }};
+    }
+
+    #[test]
+    fn test_is() {
+        // check!(parse_is, "");
+        // parse_is(tokens, pos)
     }
 }

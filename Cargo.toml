@@ -11,7 +11,7 @@ repository = "https://github.com/zahash/royalguard"
 [dependencies]
 regex = { version = "1" }
 lazy_static = { version = "1" }
-inquire = { version = "0.6.2" }
+rustyline = { version = "12" }
 
 [dev-dependencies]
 pretty_assertions = { version = "1" }

@@ -1,6 +1,7 @@
 use std::{collections::HashMap, fmt::Display};
 
-use crate::*;
+use crate::lex::*;
+use crate::parse::*;
 
 #[derive(Debug)]
 pub enum EvaluatorError<'text> {
