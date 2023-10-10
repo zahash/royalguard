@@ -9,6 +9,7 @@ repository = "https://github.com/zahash/royalguard"
 
 
 [dependencies]
+# anyhow = { version = "1" }
 regex = { version = "1" }
 lazy_static = { version = "1" }
 clap = { version = "4", features = ["derive"] }

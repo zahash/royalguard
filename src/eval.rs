@@ -197,7 +197,7 @@ mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
 
-    macro_rules! check_read {
+    macro_rules! check {
         ($state:expr, $cmd:expr, $expected:expr) => {
             $expected.sort();
 
@@ -220,24 +220,24 @@ mod tests {
         let mut state = State::new();
 
         eval!(&mut state, "set gmail");
-        check_read!(&mut state, "show all", ["'gmail'"]);
+        check!(&mut state, "show all", ["'gmail'"]);
 
         eval!(&mut state, "set gmail user = zahash pass = supersecretpass");
-        check_read!(
+        check!(
             &mut state,
             "show all",
             ["'gmail' pass='supersecretpass' user='zahash'"]
         );
 
         eval!(&mut state, "set gmail url = mail.google.com");
-        check_read!(
+        check!(
             &mut state,
             "show all",
             ["'gmail' pass='supersecretpass' url='mail.google.com' user='zahash'"]
         );
 
         eval!(&mut state, "set discord url = discord.com tags = chat,call");
-        check_read!(
+        check!(
             &mut state,
             "show all",
             [
@@ -251,21 +251,21 @@ mod tests {
     fn test_del() {
         let mut state = State::new();
 
-        check_read!(&mut state, "delete gmail", [] as [String; 0]);
+        check!(&mut state, "delete gmail", [] as [String; 0]);
 
         eval!(&mut state, "set gmail url = mail.google.com");
 
-        check_read!(&mut state, "delete discord", [] as [String; 0]);
+        check!(&mut state, "delete discord", [] as [String; 0]);
 
         eval!(&mut state, "set discord url = discord.com");
 
-        check_read!(
+        check!(
             &mut state,
             "delete gmail",
             ["'gmail' url='mail.google.com'"]
         );
 
-        check_read!(&mut state, "show all", ["'discord' url='discord.com'"]);
+        check!(&mut state, "show all", ["'discord' url='discord.com'"]);
     }
 
     #[test]
@@ -279,13 +279,13 @@ mod tests {
             "set twitch user = amogus pass = tpass123"
         );
 
-        check_read!(
+        check!(
             &mut state,
             "show discord",
             ["'discord' pass='dpass123' url='discord.com' user='hazash'"]
         );
 
-        check_read!(
+        check!(
             &mut state,
             "show all",
             [
@@ -295,7 +295,7 @@ mod tests {
             ]
         );
 
-        check_read!(
+        check!(
             &mut state,
             r#"show user contains ash and url matches '\.com'"#,
             [
@@ -304,7 +304,7 @@ mod tests {
             ]
         );
 
-        check_read!(
+        check!(
             &mut state,
             r#"show url contains google or user is amogus"#,
             [
@@ -313,7 +313,7 @@ mod tests {
             ]
         );
 
-        check_read!(
+        check!(
             &mut state,
             "show pass matches '[a-z]+123' and ( user is amogus or user contains 'ash' )",
             [
@@ -324,13 +324,13 @@ mod tests {
         );
 
         eval!(&mut state, "set sus user = sussolini name = potatus");
-        check_read!(&mut state, "show name is sus", [] as [String; 0]);
-        check_read!(
+        check!(&mut state, "show name is sus", [] as [String; 0]);
+        check!(
             &mut state,
             "show $name is sus",
             ["'sus' name='potatus' user='sussolini'"]
         );
-        check_read!(
+        check!(
             &mut state,
             "show name is potatus",
             ["'sus' name='potatus' user='sussolini'"]
