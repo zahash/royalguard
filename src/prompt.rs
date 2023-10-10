@@ -1,6 +1,7 @@
 use crate::crypt::*;
 use crate::eval::*;
 
+use anyhow::Context;
 use clap::Parser;
 use rustyline::error::ReadlineError;
 
@@ -8,18 +9,35 @@ use rustyline::error::ReadlineError;
 #[derive(Parser)]
 struct CLI {
     /// encrypted data filepath
-    #[arg(short, long, default_value_t = String::from("~/royalguard"))]
-    fpath: String,
+    #[arg(short, long)]
+    fpath: Option<String>,
+}
+
+fn default_fpath() -> anyhow::Result<String> {
+    let mut fpath = dirs::home_dir().with_context(
+        || "unable to automatically determine home directory. please manually provide a filepath instead.",
+    )?;
+    fpath.push("royalguard");
+    Ok(fpath.to_string_lossy().to_string())
 }
 
 pub fn run() -> anyhow::Result<()> {
-    let fpath = CLI::parse().fpath;
+    let fpath = match CLI::parse().fpath {
+        Some(f) => f,
+        None => default_fpath()?,
+    };
+
+    println!("using file '{}'", fpath);
+
     let Ok(master_pass) = rpassword::prompt_password("master password: ") else {
         println!("Bye!");
         return Ok(());
     };
 
     let data = load(&fpath, &master_pass)?;
+
+    let mut state = State::from(data);
+    let mut editor = rustyline::DefaultEditor::new()?;
 
     println!(
         r#"
@@ -31,14 +49,11 @@ pub fn run() -> anyhow::Result<()> {
         "#
     );
 
-    let mut state = State::from(data);
-    let mut rl = rustyline::DefaultEditor::new()?;
-
     loop {
-        match rl.readline("> ") {
+        match editor.readline("> ") {
             Ok(line) => {
                 if !line.is_empty() {
-                    let _ = rl.add_history_entry(&line);
+                    editor.add_history_entry(&line)?;
                     match eval(&line, &mut state) {
                         Ok(d) => {
                             for data in d {

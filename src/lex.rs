@@ -5,7 +5,6 @@ use regex::Regex;
 pub enum Token<'text> {
     Keyword(&'text str),
     Symbol(&'text str),
-    // Attr(&'text str),
     Value(&'text str),
 }
 
@@ -13,7 +12,6 @@ lazy_static! {
     static ref KEYWORD_REGEX: Regex =
         Regex::new(r#"^(set|del|delete|show|history|all|prev|and|or|contains|matches|is)\b"#)
             .unwrap();
-    // static ref ATTR_REGEX: Regex = Regex::new(r#"^(name|user|pass|url)\b"#).unwrap();
     static ref VALUE_REGEX: Regex = Regex::new(r#"^([^'\n\s\t\(\)]+|'[^'\n]+')"#).unwrap();
 }
 
@@ -53,7 +51,6 @@ fn lex_token(text: &str, pos: usize) -> Result<(Token, usize), LexError> {
         .or(lex_symbol(text, pos, "="))
         .or(lex_symbol(text, pos, "("))
         .or(lex_symbol(text, pos, ")"))
-        // .or(lex_attr(text, pos))
         .or(lex_value(text, pos))
         .ok_or(LexError::InvalidToken { pos })
 }
@@ -62,11 +59,6 @@ fn lex_keyword(text: &str, pos: usize) -> Option<(Token, usize)> {
     let (token, pos) = lex_with_pattern(text, pos, &KEYWORD_REGEX)?;
     Some((Token::Keyword(token), pos))
 }
-
-// fn lex_attr(text: &str, pos: usize) -> Option<(Token, usize)> {
-//     let (token, pos) = lex_with_pattern(text, pos, &ATTR_REGEX)?;
-//     Some((Token::Attr(token), pos))
-// }
 
 fn lex_value(text: &str, pos: usize) -> Option<(Token, usize)> {
     let (mut token, pos) = lex_with_pattern(text, pos, &VALUE_REGEX)?;
@@ -140,10 +132,6 @@ mod tests {
                     Keyword("contains"),
                     Keyword("matches"),
                     Keyword("is"),
-                    // Attr("name"),
-                    // Attr("user"),
-                    // Attr("pass"),
-                    // Attr("url"),
                     Value("name"),
                     Value("user"),
                     Value("pass"),

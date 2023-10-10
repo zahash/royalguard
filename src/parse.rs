@@ -10,7 +10,7 @@ use crate::lex::*;
 //         | history <value>
 
 // <assign> ::= <attr> = <value>
-// <attr> ::= user | pass | url
+// <attr> ::= <value> ::= [^'\n\s\t\(\)]+|'[^'\n]+'
 
 // <query> ::= <or> | <value> | all
 // <or> ::= <and> | <or> or <and>
@@ -19,15 +19,6 @@ use crate::lex::*;
 // <contains> ::= <attr> contains <value>
 // <matches> ::= <attr> matches <value>
 // <is> ::= <attr> is <value>
-
-// add 'some name with spaces' user=zahash pass=asdf url='https://asdf.com'
-// set 'some name with spaces' user=zahash.z
-// del 'some name'
-// show name is 'some name with spaces' or (name contains asdf and url matches '.+asdf.+')
-// show 'some name'
-// show all
-
-// history 'some name'
 
 #[derive(Debug)]
 pub enum ParseError<'text> {
@@ -560,24 +551,6 @@ mod tests {
         };
     }
 
-    // macro_rules! check_ast {
-    //     ($f:ident, $src:expr, $expected:expr) => {
-    //         let tokens = lex($src).expect("** LEX ERROR");
-    //         let (stmt, pos) = $f(&tokens, 0).expect("** Unable to parse statement");
-    //         assert_eq!(pos, tokens.len());
-    //         assert_eq!($expected, stmt);
-    //     };
-    // }
-
-    // macro_rules! ast {
-    //     ($f:ident, $src:expr) => {{
-    //         let tokens = lex($src).expect("** LEX ERROR");
-    //         let (stmt, pos) = $f(&tokens, 0).expect("** Unable to parse statement");
-    //         assert_eq!(pos, tokens.len());
-    //         stmt
-    //     }};
-    // }
-
     #[test]
     fn test_cmd_set() {
         check!(
@@ -612,7 +585,7 @@ mod tests {
 
     #[test]
     fn test_query() {
-        // check!(parse_query, "all");
+        check!(parse_query, "all");
         check!(
             parse_query,
             "user is 'a' or user is 'a' and user is 'a'",

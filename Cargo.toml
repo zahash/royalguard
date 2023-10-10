@@ -9,7 +9,6 @@ repository = "https://github.com/zahash/royalguard"
 
 
 [dependencies]
-# thiserror = { version = "1" }
 anyhow = { version = "1" }
 regex = { version = "1" }
 lazy_static = { version = "1" }
@@ -21,7 +20,7 @@ aes-gcm = { version = "0.10" }
 ring = { version = "0.17" }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1" }
-
+dirs = { version = "5" }
 
 [dev-dependencies]
 pretty_assertions = { version = "1" }
