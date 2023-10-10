@@ -9,6 +9,10 @@
 
 > Ergonomic Command Line Password Manager. Forever Free.
 
+## Download
+
+[https://github.com/zahash/royalguard/releases](https://github.com/zahash/royalguard/releases)
+
 ## Usage examples
 
 ```sh
