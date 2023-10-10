@@ -1,8 +1,30 @@
-use crate::eval::*;
+use crate::{
+    // crypt::load, 
+    eval::*
+};
 
 use rustyline::error::ReadlineError;
 
+use clap::Parser;
+
+// /// Royal Guard
+// #[derive(Parser)]
+// struct CLI {
+//     /// encrypted data filepath
+//     #[arg(short, long, default_value_t = String::from("~/royalguard"))]
+//     fpath: String,
+// }
+
 pub fn run() {
+    // let fpath = CLI::parse().fpath;
+
+    // let Ok(master_pass) = rpassword::prompt_password("master password: ") else {
+    //     println!("Bye!");
+    //     return;
+    // };
+
+    // let data = load(fpath, &master_pass);
+
     println!(
         r#"
         ██████   ██████  ██    ██  █████  ██           ██████  ██    ██  █████  ██████  ██████  

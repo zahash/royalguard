@@ -4,20 +4,12 @@ use uuid::Uuid;
 
 use crate::lex::*;
 use crate::parse::*;
+use crate::store::Data;
 
 #[derive(Debug)]
 pub enum EvaluatorError<'text> {
     LexError(LexError),
     ParseError(ParseError<'text>),
-}
-
-#[derive(Debug, Clone)]
-pub struct Data {
-    pub id: Uuid,
-    pub name: String,
-    pub user: Option<String>,
-    pub pass: Option<String>,
-    pub url: Option<String>,
 }
 
 pub struct State {
@@ -48,19 +40,11 @@ impl<'text> State {
         let data = self.data.entry(name.to_string()).or_insert(Data {
             id: Uuid::new_v4(),
             name: name.to_string(),
-            user: None,
-            pass: None,
-            url: None,
+            fields: HashMap::new(),
         });
 
         for Assign { attr, value } in assignments {
-            let value = value.to_string();
-            match attr {
-                "user" => data.user = Some(value),
-                "pass" => data.pass = Some(value),
-                "url" => data.url = Some(value),
-                _ => {}
-            }
+            data.fields.insert(attr.to_string(), value.to_string());
         }
     }
 
@@ -133,20 +117,11 @@ impl<'text> Cond<'text> for Filter<'text> {
 impl<'text> Cond<'text> for Contains<'text> {
     fn test(&self, data: &Data) -> bool {
         match self.attr {
-            "name" => data.name.contains(self.substr),
-            "user" => data
-                .user
-                .as_ref()
-                .map_or(false, |user| user.contains(self.substr)),
-            "pass" => data
-                .pass
-                .as_ref()
-                .map_or(false, |pass| pass.contains(self.substr)),
-            "url" => data
-                .url
-                .as_ref()
-                .map_or(false, |url| url.contains(self.substr)),
-            _ => false,
+            "$name" => data.name.contains(self.substr),
+            attr => data
+                .fields
+                .get(attr)
+                .map_or(false, |val| val.contains(self.substr)),
         }
     }
 }
@@ -154,20 +129,12 @@ impl<'text> Cond<'text> for Contains<'text> {
 impl<'text> Cond<'text> for Matches<'text> {
     fn test(&self, data: &Data) -> bool {
         match self.attr {
-            "name" => self.pat.find(&data.name).is_some(),
-            "user" => data
-                .user
-                .as_ref()
-                .map_or(false, |user| self.pat.find(&user).is_some()),
-            "pass" => data
-                .pass
-                .as_ref()
-                .map_or(false, |pass| self.pat.find(&pass).is_some()),
-            "url" => data
-                .url
-                .as_ref()
-                .map_or(false, |url| self.pat.find(&url).is_some()),
-            _ => false,
+            "$name" => self.pat.find(&data.name).is_some(),
+            attr => data
+                .fields
+                .get(attr)
+                .and_then(|val| self.pat.find(val))
+                .is_some(),
         }
     }
 }
@@ -175,11 +142,8 @@ impl<'text> Cond<'text> for Matches<'text> {
 impl<'text> Cond<'text> for Is<'text> {
     fn test(&self, data: &Data) -> bool {
         match self.attr {
-            "name" => data.name == self.value,
-            "user" => data.user.as_ref().map_or(false, |user| user == self.value),
-            "pass" => data.pass.as_ref().map_or(false, |pass| pass == self.value),
-            "url" => data.url.as_ref().map_or(false, |url| url == self.value),
-            _ => false,
+            "$name" => data.name == self.value,
+            attr => data.fields.get(attr).map_or(false, |val| val == self.value),
         }
     }
 }
@@ -187,14 +151,12 @@ impl<'text> Cond<'text> for Is<'text> {
 impl<'text> Display for Data {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "'{}'", self.name)?;
-        if let Some(user) = &self.user {
-            write!(f, "  user='{}'", user)?;
-        }
-        if let Some(pass) = &self.pass {
-            write!(f, "  pass='{}'", pass)?;
-        }
-        if let Some(url) = &self.url {
-            write!(f, "  url='{}'", url)?;
+
+        let mut fields = self.fields.iter().collect::<Vec<(&String, &String)>>();
+        fields.sort_by_key(|&(k, _)| k);
+
+        for (k, v) in fields {
+            write!(f, " {}='{}'", k, v)?;
         }
         Ok(())
     }
@@ -209,5 +171,151 @@ impl<'text> From<LexError> for EvaluatorError<'text> {
 impl<'text> From<ParseError<'text>> for EvaluatorError<'text> {
     fn from(value: ParseError<'text>) -> Self {
         EvaluatorError::ParseError(value)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pretty_assertions::assert_eq;
+
+    macro_rules! check_read {
+        ($state:expr, $cmd:expr, $expected:expr) => {
+            $expected.sort();
+
+            let mut data = eval($cmd, &mut $state).expect(&format!("unable to eval {}", $cmd));
+            data.sort_by(|d1, d2| d1.name.cmp(&d2.name));
+            let data: Vec<String> = data.into_iter().map(|d| format!("{}", d)).collect();
+
+            assert_eq!(data, $expected);
+        };
+    }
+
+    macro_rules! eval {
+        ($state:expr, $($cmd:expr),*) => {
+            $ ( eval($cmd, $state).expect(&format!("unable to eval {}", $cmd)); )*
+        };
+    }
+
+    #[test]
+    fn test_set() {
+        let mut state = State::new();
+
+        eval!(&mut state, "set gmail");
+        check_read!(&mut state, "show all", ["'gmail'"]);
+
+        eval!(&mut state, "set gmail user = zahash pass = supersecretpass");
+        check_read!(
+            &mut state,
+            "show all",
+            ["'gmail' pass='supersecretpass' user='zahash'"]
+        );
+
+        eval!(&mut state, "set gmail url = mail.google.com");
+        check_read!(
+            &mut state,
+            "show all",
+            ["'gmail' pass='supersecretpass' url='mail.google.com' user='zahash'"]
+        );
+
+        eval!(&mut state, "set discord url = discord.com tags = chat,call");
+        check_read!(
+            &mut state,
+            "show all",
+            [
+                "'discord' tags='chat,call' url='discord.com'",
+                "'gmail' pass='supersecretpass' url='mail.google.com' user='zahash'",
+            ]
+        );
+    }
+
+    #[test]
+    fn test_del() {
+        let mut state = State::new();
+
+        check_read!(&mut state, "delete gmail", [] as [String; 0]);
+
+        eval!(&mut state, "set gmail url = mail.google.com");
+
+        check_read!(&mut state, "delete discord", [] as [String; 0]);
+
+        eval!(&mut state, "set discord url = discord.com");
+
+        check_read!(
+            &mut state,
+            "delete gmail",
+            ["'gmail' url='mail.google.com'"]
+        );
+
+        check_read!(&mut state, "show all", ["'discord' url='discord.com'"]);
+    }
+
+    #[test]
+    fn test_show() {
+        let mut state = State::new();
+
+        eval!(
+            &mut state,
+            "set gmail user = zahash pass = pass123 url = mail.google.com",
+            "set discord user = hazash pass = dpass123 url = discord.com",
+            "set twitch user = amogus pass = tpass123"
+        );
+
+        check_read!(
+            &mut state,
+            "show discord",
+            ["'discord' pass='dpass123' url='discord.com' user='hazash'"]
+        );
+
+        check_read!(
+            &mut state,
+            "show all",
+            [
+                "'discord' pass='dpass123' url='discord.com' user='hazash'",
+                "'gmail' pass='pass123' url='mail.google.com' user='zahash'",
+                "'twitch' pass='tpass123' user='amogus'"
+            ]
+        );
+
+        check_read!(
+            &mut state,
+            r#"show user contains ash and url matches '\.com'"#,
+            [
+                "'discord' pass='dpass123' url='discord.com' user='hazash'",
+                "'gmail' pass='pass123' url='mail.google.com' user='zahash'"
+            ]
+        );
+
+        check_read!(
+            &mut state,
+            r#"show url contains google or user is amogus"#,
+            [
+                "'gmail' pass='pass123' url='mail.google.com' user='zahash'",
+                "'twitch' pass='tpass123' user='amogus'"
+            ]
+        );
+
+        check_read!(
+            &mut state,
+            "show pass matches '[a-z]+123' and ( user is amogus or user contains 'ash' )",
+            [
+                "'discord' pass='dpass123' url='discord.com' user='hazash'",
+                "'gmail' pass='pass123' url='mail.google.com' user='zahash'",
+                "'twitch' pass='tpass123' user='amogus'"
+            ]
+        );
+
+        eval!(&mut state, "set sus user = sussolini name = potatus");
+        check_read!(&mut state, "show name is sus", [] as [String; 0]);
+        check_read!(
+            &mut state,
+            "show $name is sus",
+            ["'sus' name='potatus' user='sussolini'"]
+        );
+        check_read!(
+            &mut state,
+            "show name is potatus",
+            ["'sus' name='potatus' user='sussolini'"]
+        );
     }
 }

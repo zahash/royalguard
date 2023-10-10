@@ -1,7 +1,9 @@
+mod crypt;
 mod eval;
 mod lex;
 mod parse;
 mod prompt;
+mod store;
 
 // launch prompt. ask for master password
 
