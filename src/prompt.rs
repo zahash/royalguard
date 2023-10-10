@@ -12,15 +12,14 @@ struct CLI {
     fpath: String,
 }
 
-pub fn run() {
+pub fn run() -> anyhow::Result<()> {
     let fpath = CLI::parse().fpath;
-
     let Ok(master_pass) = rpassword::prompt_password("master password: ") else {
         println!("Bye!");
-        return;
+        return Ok(());
     };
 
-    let data = load(&fpath, &master_pass).unwrap();
+    let data = load(&fpath, &master_pass)?;
 
     println!(
         r#"
@@ -33,7 +32,7 @@ pub fn run() {
     );
 
     let mut state = State::from(data);
-    let mut rl = rustyline::DefaultEditor::new().unwrap();
+    let mut rl = rustyline::DefaultEditor::new()?;
 
     loop {
         match rl.readline("> ") {
@@ -46,20 +45,20 @@ pub fn run() {
                                 println!("{}", data);
                             }
                         }
-                        Err(e) => eprintln!("*** {:?}", e),
+                        Err(e) => eprintln!("!! {:?}", e),
                     }
                 }
             }
             Err(ReadlineError::Interrupted) => {
                 println!("CTRL-C");
                 println!("saving to {} ...", &fpath);
-                dump(&fpath, &master_pass, state.into()).unwrap();
+                dump(&fpath, &master_pass, state.into())?;
                 break;
             }
             Err(ReadlineError::Eof) => {
                 println!("CTRL-D");
                 println!("saving to {} ...", &fpath);
-                dump(&fpath, &master_pass, state.into()).unwrap();
+                dump(&fpath, &master_pass, state.into())?;
                 break;
             }
             Err(err) => {
@@ -68,4 +67,6 @@ pub fn run() {
             }
         }
     }
+
+    Ok(())
 }

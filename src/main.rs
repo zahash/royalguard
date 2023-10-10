@@ -24,5 +24,5 @@ mod store;
 // history prev
 
 fn main() {
-    prompt::run();
+    prompt::run().unwrap();
 }
