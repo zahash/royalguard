@@ -560,23 +560,23 @@ mod tests {
         };
     }
 
-    macro_rules! check_ast {
-        ($f:ident, $src:expr, $expected:expr) => {
-            let tokens = lex($src).expect("** LEX ERROR");
-            let (stmt, pos) = $f(&tokens, 0).expect("** Unable to parse statement");
-            assert_eq!(pos, tokens.len());
-            assert_eq!($expected, stmt);
-        };
-    }
+    // macro_rules! check_ast {
+    //     ($f:ident, $src:expr, $expected:expr) => {
+    //         let tokens = lex($src).expect("** LEX ERROR");
+    //         let (stmt, pos) = $f(&tokens, 0).expect("** Unable to parse statement");
+    //         assert_eq!(pos, tokens.len());
+    //         assert_eq!($expected, stmt);
+    //     };
+    // }
 
-    macro_rules! ast {
-        ($f:ident, $src:expr) => {{
-            let tokens = lex($src).expect("** LEX ERROR");
-            let (stmt, pos) = $f(&tokens, 0).expect("** Unable to parse statement");
-            assert_eq!(pos, tokens.len());
-            stmt
-        }};
-    }
+    // macro_rules! ast {
+    //     ($f:ident, $src:expr) => {{
+    //         let tokens = lex($src).expect("** LEX ERROR");
+    //         let (stmt, pos) = $f(&tokens, 0).expect("** Unable to parse statement");
+    //         assert_eq!(pos, tokens.len());
+    //         stmt
+    //     }};
+    // }
 
     #[test]
     fn test_cmd_set() {

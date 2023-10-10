@@ -16,6 +16,24 @@ pub struct State {
     data: HashMap<String, Data>,
 }
 
+impl From<Vec<Data>> for State {
+    fn from(data: Vec<Data>) -> Self {
+        let mut state = State::new();
+
+        for d in data {
+            state.data.insert(d.name.clone(), d);
+        }
+
+        state
+    }
+}
+
+impl From<State> for Vec<Data> {
+    fn from(state: State) -> Self {
+        state.data.into_iter().map(|(_, v)| v).collect()
+    }
+}
+
 impl<'text> State {
     pub fn new() -> Self {
         Self {

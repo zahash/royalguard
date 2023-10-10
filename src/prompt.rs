@@ -1,29 +1,26 @@
-use crate::{
-    // crypt::load, 
-    eval::*
-};
-
-use rustyline::error::ReadlineError;
+use crate::crypt::*;
+use crate::eval::*;
 
 use clap::Parser;
+use rustyline::error::ReadlineError;
 
-// /// Royal Guard
-// #[derive(Parser)]
-// struct CLI {
-//     /// encrypted data filepath
-//     #[arg(short, long, default_value_t = String::from("~/royalguard"))]
-//     fpath: String,
-// }
+/// Royal Guard
+#[derive(Parser)]
+struct CLI {
+    /// encrypted data filepath
+    #[arg(short, long, default_value_t = String::from("~/royalguard"))]
+    fpath: String,
+}
 
 pub fn run() {
-    // let fpath = CLI::parse().fpath;
+    let fpath = CLI::parse().fpath;
 
-    // let Ok(master_pass) = rpassword::prompt_password("master password: ") else {
-    //     println!("Bye!");
-    //     return;
-    // };
+    let Ok(master_pass) = rpassword::prompt_password("master password: ") else {
+        println!("Bye!");
+        return;
+    };
 
-    // let data = load(fpath, &master_pass);
+    let data = load(&fpath, &master_pass).unwrap();
 
     println!(
         r#"
@@ -35,7 +32,7 @@ pub fn run() {
         "#
     );
 
-    let mut state = State::new();
+    let mut state = State::from(data);
     let mut rl = rustyline::DefaultEditor::new().unwrap();
 
     loop {
@@ -55,10 +52,14 @@ pub fn run() {
             }
             Err(ReadlineError::Interrupted) => {
                 println!("CTRL-C");
+                println!("saving to {} ...", &fpath);
+                dump(&fpath, &master_pass, state.into()).unwrap();
                 break;
             }
             Err(ReadlineError::Eof) => {
                 println!("CTRL-D");
+                println!("saving to {} ...", &fpath);
+                dump(&fpath, &master_pass, state.into()).unwrap();
                 break;
             }
             Err(err) => {
