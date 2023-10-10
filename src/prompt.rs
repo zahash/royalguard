@@ -51,6 +51,14 @@ pub fn run() -> anyhow::Result<()> {
 
     loop {
         match editor.readline("> ") {
+            Ok(s) if s == "help" || s == "example" || s == "examples" => {
+                println!("set gmail user = sussolini pass = amogus url = mail.google.sus");
+                println!("set gmail pass = updatedpotatus");
+                println!("del gmail");
+                println!("show all");
+                println!("show gmail");
+                println!("show user is sussolini and (pass contains sus or url matches '.*com')");
+            }
             Ok(line) => {
                 if !line.is_empty() {
                     editor.add_history_entry(&line)?;
