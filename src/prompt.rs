@@ -49,6 +49,8 @@ pub fn run() -> anyhow::Result<()> {
         "#
     );
 
+    println!("type 'help' on usage instructions");
+
     loop {
         match editor.readline("> ") {
             Ok(s) if s == "help" || s == "example" || s == "examples" => {
