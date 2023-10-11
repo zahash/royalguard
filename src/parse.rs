@@ -52,6 +52,7 @@ pub enum Cmd<'text> {
     History {
         name: &'text str,
     },
+    Import(&'text str),
 }
 
 fn parse_cmd<'text>(
@@ -66,6 +67,7 @@ fn parse_cmd<'text>(
             Box::new(parse_cmd_del),
             Box::new(parse_cmd_show),
             Box::new(parse_cmd_history),
+            Box::new(parse_cmd_import),
         ],
         "cannot parse cmd",
     )
@@ -149,6 +151,21 @@ fn parse_cmd_history<'text>(
     };
 
     Ok((Cmd::History { name }, pos + 2))
+}
+
+fn parse_cmd_import<'text>(
+    tokens: &[Token<'text>],
+    pos: usize,
+) -> Result<(Cmd<'text>, usize), ParseError<'text>> {
+    let Some(Token::Keyword("import")) = tokens.get(pos) else {
+        return Err(ParseError::Expected(Token::Keyword("import"), pos));
+    };
+
+    let Some(Token::Value(fpath)) = tokens.get(pos + 1) else {
+        return Err(ParseError::ExpectedValue(pos + 1));
+    };
+
+    Ok((Cmd::Import(fpath), pos + 2))
 }
 
 pub struct Assign<'text> {
@@ -426,6 +443,7 @@ impl<'text> Display for Cmd<'text> {
             Cmd::Del { name } => write!(f, "del '{}'", name),
             Cmd::Show(q) => write!(f, "show {}", q),
             Cmd::History { name } => write!(f, "history {}", name),
+            Cmd::Import(fpath) => write!(f, "import '{}'", fpath),
         }
     }
 }
@@ -585,6 +603,11 @@ mod tests {
             "show user is 'a' and user contains 'a' or user matches 'a'",
             "show ((user is 'a' and user contains 'a') or user matches 'a')"
         );
+    }
+
+    #[test]
+    fn test_cmd_import() {
+        check!(parse_cmd, "import '/home/suscobar/passwords.json'");
     }
 
     #[test]

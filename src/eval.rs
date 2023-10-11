@@ -10,6 +10,13 @@ use crate::store::Data;
 pub enum EvaluatorError<'text> {
     LexError(LexError),
     ParseError(ParseError<'text>),
+    ImportError(ImportError),
+}
+
+#[derive(Debug)]
+pub enum ImportError {
+    IoError(std::io::Error),
+    SerdeError(serde_json::Error),
 }
 
 #[derive(Clone)]
@@ -70,6 +77,47 @@ impl<'text> State {
     pub fn del(&mut self, name: &str) -> Option<Data> {
         self.data.remove(name)
     }
+
+    pub fn import(&mut self, import: HashMap<String, HashMap<String, String>>) -> Vec<Data> {
+        fn modified_name(name: &str, data: &HashMap<String, Data>) -> String {
+            for offset in 1usize.. {
+                let modified_name = name.to_string() + &format!("{}", offset);
+
+                match data.contains_key(&modified_name) {
+                    true => continue,
+                    false => return modified_name,
+                };
+            }
+
+            unreachable!(
+                "reachable only when name + offset is present in data for all offset in (1usize..). which is highly unlikely."
+            )
+        }
+
+        let mut imported_data = vec![];
+
+        for (name, fields) in import {
+            let name = match self.data.contains_key(&name) {
+                true => modified_name(&name, &self.data),
+                false => name,
+            };
+
+            let mut data = Data {
+                id: Uuid::new_v4(),
+                name: name.clone(),
+                fields: HashMap::new(),
+            };
+
+            for (attr, value) in fields {
+                data.fields.insert(attr, value);
+            }
+
+            self.data.insert(name, data.clone());
+            imported_data.push(data);
+        }
+
+        imported_data
+    }
 }
 
 pub fn eval<'text>(
@@ -87,6 +135,11 @@ pub fn eval<'text>(
         Cmd::Del { name } => Ok(state.del(name).into_iter().collect()),
         Cmd::Show(query) => Ok(state.get(query)),
         Cmd::History { name: _ } => unimplemented!("history feature coming soon"),
+        Cmd::Import(fpath) => {
+            let contents = std::fs::read_to_string(fpath)?;
+            let data = serde_json::from_str(&contents)?;
+            Ok(state.import(data))
+        }
     }
 }
 
@@ -190,6 +243,18 @@ impl<'text> From<LexError> for EvaluatorError<'text> {
 impl<'text> From<ParseError<'text>> for EvaluatorError<'text> {
     fn from(value: ParseError<'text>) -> Self {
         EvaluatorError::ParseError(value)
+    }
+}
+
+impl<'text> From<std::io::Error> for EvaluatorError<'text> {
+    fn from(value: std::io::Error) -> Self {
+        EvaluatorError::ImportError(ImportError::IoError(value))
+    }
+}
+
+impl<'text> From<serde_json::Error> for EvaluatorError<'text> {
+    fn from(value: serde_json::Error) -> Self {
+        EvaluatorError::ImportError(ImportError::SerdeError(value))
     }
 }
 
@@ -337,4 +402,31 @@ mod tests {
             ["'sus' name='potatus' user='sussolini'"]
         );
     }
+
+    // #[test]
+    // fn test_import() {
+    //     fn prepare_file(content: &str) -> String {
+    //         let mut file = tempfile::NamedTempFile::new().unwrap();
+    //         write!(file, "{}", content).unwrap();
+    //         file.into_temp_path().to_string_lossy().to_string()
+    //     }
+
+    //     let mut state = State::new();
+
+    //     check!(&mut state, "delete gmail", [] as [String; 0]);
+
+    //     eval!(&mut state, "set gmail url = mail.google.com");
+
+    //     check!(&mut state, "delete discord", [] as [String; 0]);
+
+    //     eval!(&mut state, "set discord url = discord.com");
+
+    //     check!(
+    //         &mut state,
+    //         "delete gmail",
+    //         ["'gmail' url='mail.google.com'"]
+    //     );
+
+    //     check!(&mut state, "show all", ["'discord' url='discord.com'"]);
+    // }
 }
