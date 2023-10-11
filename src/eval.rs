@@ -260,6 +260,8 @@ impl<'text> From<serde_json::Error> for EvaluatorError<'text> {
 
 #[cfg(test)]
 mod tests {
+    use std::io::Write;
+
     use super::*;
     use pretty_assertions::assert_eq;
 
@@ -403,30 +405,73 @@ mod tests {
         );
     }
 
-    // #[test]
-    // fn test_import() {
-    //     fn prepare_file(content: &str) -> String {
-    //         let mut file = tempfile::NamedTempFile::new().unwrap();
-    //         write!(file, "{}", content).unwrap();
-    //         file.into_temp_path().to_string_lossy().to_string()
-    //     }
+    #[test]
+    fn test_import() {
+        let mut state = State::new();
 
-    //     let mut state = State::new();
+        let mut file = tempfile::NamedTempFile::new().unwrap();
+        let mut file2 = tempfile::NamedTempFile::new().unwrap();
+        write!(
+            file,
+            "{}",
+            r#"
+            {
+                "gmail": {
+                    "user": "benito sussolini",
+                    "pass": "potatus",
+                    "url": "mail.google.com"
+                },
+                "discord": {
+                    "user": "pablo susscobar",
+                    "pass": "cocainum",
+                    "url": "discord.com"
+                }
+            }
+            "#
+        )
+        .unwrap();
+        write!(file2, "{}", r#" { "gmail": {}, "discord": {} } "#).unwrap();
 
-    //     check!(&mut state, "delete gmail", [] as [String; 0]);
+        let cmd = format!("import {}", file.path().to_str().unwrap());
+        let cmd2 = format!("import {}", file2.path().to_str().unwrap());
 
-    //     eval!(&mut state, "set gmail url = mail.google.com");
+        check!(
+            &mut state,
+            &cmd,
+            [
+                "'discord' pass='cocainum' url='discord.com' user='pablo susscobar'",
+                "'gmail' pass='potatus' url='mail.google.com' user='benito sussolini'",
+            ]
+        );
+        check!(
+            &mut state,
+            "show all",
+            [
+                "'discord' pass='cocainum' url='discord.com' user='pablo susscobar'",
+                "'gmail' pass='potatus' url='mail.google.com' user='benito sussolini'",
+            ]
+        );
 
-    //     check!(&mut state, "delete discord", [] as [String; 0]);
-
-    //     eval!(&mut state, "set discord url = discord.com");
-
-    //     check!(
-    //         &mut state,
-    //         "delete gmail",
-    //         ["'gmail' url='mail.google.com'"]
-    //     );
-
-    //     check!(&mut state, "show all", ["'discord' url='discord.com'"]);
-    // }
+        check!(
+            &mut state,
+            &cmd,
+            [
+                "'discord1' pass='cocainum' url='discord.com' user='pablo susscobar'",
+                "'gmail1' pass='potatus' url='mail.google.com' user='benito sussolini'",
+            ]
+        );
+        check!(&mut state, &cmd2, ["'discord2'", "'gmail2'",]);
+        check!(
+            &mut state,
+            "show all",
+            [
+                "'discord' pass='cocainum' url='discord.com' user='pablo susscobar'",
+                "'discord1' pass='cocainum' url='discord.com' user='pablo susscobar'",
+                "'discord2'",
+                "'gmail' pass='potatus' url='mail.google.com' user='benito sussolini'",
+                "'gmail1' pass='potatus' url='mail.google.com' user='benito sussolini'",
+                "'gmail2'",
+            ]
+        );
+    }
 }
