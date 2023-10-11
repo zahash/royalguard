@@ -18,5 +18,4 @@ cargo publish
 
 TODO:
 history
-import from file
 is =
