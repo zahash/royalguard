@@ -6,8 +6,8 @@ use clap::Parser;
 use rustyline::error::ReadlineError;
 
 const HELP: &'static str = r#"
-set gmail user = sussolini pass = amogus url = mail.google.sus
-set gmail pass = updatedpotatus
+set gmail user = sussolini pass = 'use single quote for spaces' url = mail.google.sus
+set gmail pass = updatedpassword
 del gmail
 show all
 show gmail
