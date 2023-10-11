@@ -1,3 +1,7 @@
+// Portions of this code are derived from the original work by SonuBardai
+// https://github.com/SonuBardai
+// (Copyright (c) 2022 SonuBardai).
+
 use aes_gcm::{
     aead::{generic_array::GenericArray, Aead, OsRng},
     AeadCore, Aes256Gcm, KeyInit,
