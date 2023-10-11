@@ -5,6 +5,15 @@ use anyhow::Context;
 use clap::Parser;
 use rustyline::error::ReadlineError;
 
+const HELP: &'static str = r#"
+set gmail user = sussolini pass = amogus url = mail.google.sus
+set gmail pass = updatedpotatus
+del gmail
+show all
+show gmail
+show user is sussolini and (pass contains sus or url matches '.*com')
+"#;
+
 /// Royal Guard
 #[derive(Parser)]
 struct CLI {
@@ -50,17 +59,11 @@ pub fn run() -> anyhow::Result<()> {
     );
 
     println!("type 'help' on usage instructions");
+    println!("To Quit, press CTRL-C or CTRL-D");
 
     loop {
         match editor.readline("> ") {
-            Ok(s) if s == "help" || s == "example" || s == "examples" => {
-                println!("set gmail user = sussolini pass = amogus url = mail.google.sus");
-                println!("set gmail pass = updatedpotatus");
-                println!("del gmail");
-                println!("show all");
-                println!("show gmail");
-                println!("show user is sussolini and (pass contains sus or url matches '.*com')");
-            }
+            Ok(s) if s == "help" || s == "HELP" => println!("{}", HELP),
             Ok(line) => {
                 if !line.is_empty() {
                     editor.add_history_entry(&line)?;
