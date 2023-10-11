@@ -57,6 +57,7 @@ pub fn run() -> anyhow::Result<()> {
         ██   ██  ██████     ██    ██   ██ ███████      ██████   ██████  ██   ██ ██   ██ ██████  
         "#
     );
+    println!(env!("CARGO_PKG_VERSION"));
 
     println!("type 'help' on usage instructions");
     println!("To Quit, press CTRL-C or CTRL-D or type 'exit' or 'quit' (all updates will be auto saved after quitting)");
@@ -67,12 +68,13 @@ pub fn run() -> anyhow::Result<()> {
             Ok(s) if s == "clear" || s == "cls" => editor.clear_screen()?,
             Ok(s) if s == "help" || s == "HELP" => println!("{}", HELP),
             Ok(s) if s == "exit" || s == "quit" => {
-                println!("saving to {} ...", &fpath);
+                println!("saving to '{}' ...", &fpath);
                 dump(&fpath, &master_pass, state.into())?;
+                println!("saved successfully!");
                 break;
             }
             Ok(s) if s == "save" => {
-                println!("saving to {} ...", &fpath);
+                println!("saving to '{}' ...", &fpath);
                 dump(&fpath, &master_pass, state.clone().into())?;
                 println!("saved successfully!");
             }
@@ -91,14 +93,14 @@ pub fn run() -> anyhow::Result<()> {
             }
             Err(ReadlineError::Interrupted) => {
                 println!("CTRL-C");
-                println!("saving to {} ...", &fpath);
+                println!("saving to '{}' ...", &fpath);
                 dump(&fpath, &master_pass, state.into())?;
                 println!("saved successfully!");
                 break;
             }
             Err(ReadlineError::Eof) => {
                 println!("CTRL-D");
-                println!("saving to {} ...", &fpath);
+                println!("saving to '{}' ...", &fpath);
                 dump(&fpath, &master_pass, state.into())?;
                 println!("saved successfully!");
                 break;

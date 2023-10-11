@@ -17,6 +17,6 @@ cargo publish
 
 
 TODO:
+history
 import from file
-show version
 is =
