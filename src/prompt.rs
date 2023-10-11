@@ -36,7 +36,7 @@ pub fn run() -> anyhow::Result<()> {
         None => default_fpath()?,
     };
 
-    println!("using file '{}'", fpath);
+    println!("All data will be saved to file '{}'", fpath);
 
     let Ok(master_pass) = rpassword::prompt_password("master password: ") else {
         println!("Bye!");
@@ -59,11 +59,23 @@ pub fn run() -> anyhow::Result<()> {
     );
 
     println!("type 'help' on usage instructions");
-    println!("To Quit, press CTRL-C or CTRL-D");
+    println!("To Quit, press CTRL-C or CTRL-D or type 'exit' or 'quit' (all updates will be auto saved after quitting)");
+    println!("type 'save' to save current updates manually");
 
     loop {
         match editor.readline("> ") {
+            Ok(s) if s == "clear" || s == "cls" => editor.clear_screen()?,
             Ok(s) if s == "help" || s == "HELP" => println!("{}", HELP),
+            Ok(s) if s == "exit" || s == "quit" => {
+                println!("saving to {} ...", &fpath);
+                dump(&fpath, &master_pass, state.into())?;
+                break;
+            }
+            Ok(s) if s == "save" => {
+                println!("saving to {} ...", &fpath);
+                dump(&fpath, &master_pass, state.clone().into())?;
+                println!("saved successfully!");
+            }
             Ok(line) => {
                 if !line.is_empty() {
                     editor.add_history_entry(&line)?;
@@ -81,12 +93,14 @@ pub fn run() -> anyhow::Result<()> {
                 println!("CTRL-C");
                 println!("saving to {} ...", &fpath);
                 dump(&fpath, &master_pass, state.into())?;
+                println!("saved successfully!");
                 break;
             }
             Err(ReadlineError::Eof) => {
                 println!("CTRL-D");
                 println!("saving to {} ...", &fpath);
                 dump(&fpath, &master_pass, state.into())?;
+                println!("saved successfully!");
                 break;
             }
             Err(err) => {

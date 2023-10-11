@@ -13,3 +13,10 @@ git push --tags
 
 # publish to crates.io (optional)
 cargo publish
+
+
+
+TODO:
+import from file
+show version
+is =

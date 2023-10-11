@@ -10,7 +10,7 @@ pub enum Token<'text> {
 
 lazy_static! {
     static ref KEYWORD_REGEX: Regex =
-        Regex::new(r#"^(set|del|delete|show|history|all|prev|and|or|contains|matches|is)\b"#)
+        Regex::new(r#"^(set|del|delete|show|history|all|prev|and|or|contains|matches|like|is)\b"#)
             .unwrap();
     static ref VALUE_REGEX: Regex = Regex::new(r#"^([^'\n\s\t\(\)]+|'[^'\n]+')"#).unwrap();
 }
@@ -109,7 +109,7 @@ mod tests {
     #[test]
     fn test_all() {
         let src = r#"
-        set del delete show history all prev and or contains matches is
+        set del delete show history all prev and or contains matches like is
         name user pass url
         (=)'🦀🦀🦀''N' look_mom   no_spaces   'oh wow spaces'
         (zahash)('zahash')
@@ -131,6 +131,7 @@ mod tests {
                     Keyword("or"),
                     Keyword("contains"),
                     Keyword("matches"),
+                    Keyword("like"),
                     Keyword("is"),
                     Value("name"),
                     Value("user"),

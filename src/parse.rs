@@ -318,8 +318,12 @@ fn parse_matches<'text>(
         return Err(ParseError::ExpectedAttr(pos));
     };
 
-    let Some(Token::Keyword("matches")) = tokens.get(pos + 1) else {
-        return Err(ParseError::Expected(Token::Keyword("matches"), pos + 1));
+    let (Some(Token::Keyword("matches")) | Some(Token::Keyword("like"))) = tokens.get(pos + 1)
+    else {
+        return Err(ParseError::ExpectedOneOf(
+            vec![Token::Keyword("matches"), Token::Keyword("like")],
+            pos + 1,
+        ));
     };
 
     let Some(Token::Value(pat)) = tokens.get(pos + 2) else {
@@ -630,6 +634,7 @@ mod tests {
     fn test_filter() {
         check!(parse_filter, "url contains 'github'");
         check!(parse_filter, "user matches '[A-Z]+'");
+        check!(parse_filter, "user like '[A-Z]+'", "user matches '[A-Z]+'");
         check!(parse_filter, "user is 'zahash'");
         check!(parse_filter, "(user is 'zahash')");
     }

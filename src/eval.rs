@@ -12,6 +12,7 @@ pub enum EvaluatorError<'text> {
     ParseError(ParseError<'text>),
 }
 
+#[derive(Clone)]
 pub struct State {
     data: HashMap<String, Data>,
 }
