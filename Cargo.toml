@@ -3,7 +3,7 @@ name = "royalguard"
 version = "0.3.0"
 edition = "2021"
 authors = ["Zahash <zahash.z@gmail.com>"]
-description = "Royal Guard!"
+description = "Ergonomic Command Line Password Manager. Forever Free."
 license = "MIT"
 repository = "https://github.com/zahash/royalguard"
 

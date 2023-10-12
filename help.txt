@@ -1,5 +1,6 @@
 https://opensource.axo.dev/cargo-dist/book/way-too-quickstart.html
 
+cargo dist init --yes
 
 # <manually update the version of your crate, run tests, etc>
 

@@ -5,6 +5,14 @@ use anyhow::Context;
 use clap::Parser;
 use rustyline::error::ReadlineError;
 
+const LOGO: &'static str = r#"
+██████   ██████  ██    ██  █████  ██           ██████  ██    ██  █████  ██████  ██████  
+██   ██ ██    ██  ██  ██  ██   ██ ██          ██       ██    ██ ██   ██ ██   ██ ██   ██ 
+██████  ██    ██   ████   ███████ ██          ██   ███ ██    ██ ███████ ██████  ██   ██ 
+██   ██ ██    ██    ██    ██   ██ ██          ██    ██ ██    ██ ██   ██ ██   ██ ██   ██ 
+██   ██  ██████     ██    ██   ██ ███████      ██████   ██████  ██   ██ ██   ██ ██████  
+"#;
+
 const HELP: &'static str = r#"
 set gmail user = sussolini pass = 'use single quote for spaces' url = mail.google.sus
 set gmail pass = updatedpassword
@@ -48,15 +56,7 @@ pub fn run() -> anyhow::Result<()> {
     let mut state = State::from(data);
     let mut editor = rustyline::DefaultEditor::new()?;
 
-    println!(
-        r#"
-        ██████   ██████  ██    ██  █████  ██           ██████  ██    ██  █████  ██████  ██████  
-        ██   ██ ██    ██  ██  ██  ██   ██ ██          ██       ██    ██ ██   ██ ██   ██ ██   ██ 
-        ██████  ██    ██   ████   ███████ ██          ██   ███ ██    ██ ███████ ██████  ██   ██ 
-        ██   ██ ██    ██    ██    ██   ██ ██          ██    ██ ██    ██ ██   ██ ██   ██ ██   ██ 
-        ██   ██  ██████     ██    ██   ██ ███████      ██████   ██████  ██   ██ ██   ██ ██████  
-        "#
-    );
+    println!("{}", LOGO);
     println!(env!("CARGO_PKG_VERSION"));
 
     println!("type 'help' on usage instructions");
