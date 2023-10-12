@@ -27,6 +27,22 @@ Show:
 Show (filter by name):
     show $name contains mail
     show . contains mail
+
+Import:
+    import 'path/to/file.json'
+
+Importing requires this data format
+{
+    "gmail": {
+        "user": "benito sussolini",
+        "pass": "potatus",
+        "url": "mail.google.sus"
+    },
+    "discord": {
+        "user": "pablo susscobar",
+        "pass": "cocainum",
+    }
+}
 "#;
 
 /// Royal Guard
@@ -51,6 +67,7 @@ pub fn run() -> anyhow::Result<()> {
         None => default_fpath()?,
     };
 
+    println!(env!("CARGO_PKG_VERSION"));
     println!("All data will be saved to file '{}'", fpath);
 
     let Ok(master_pass) = rpassword::prompt_password("master password: ") else {
