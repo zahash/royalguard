@@ -189,7 +189,7 @@ impl<'text> Cond<'text> for Filter<'text> {
 impl<'text> Cond<'text> for Contains<'text> {
     fn test(&self, data: &Data) -> bool {
         match self.attr {
-            "$name" => data.name.contains(self.substr),
+            "$name" | "." => data.name.contains(self.substr),
             attr => data
                 .fields
                 .get(attr)
@@ -201,7 +201,7 @@ impl<'text> Cond<'text> for Contains<'text> {
 impl<'text> Cond<'text> for Matches<'text> {
     fn test(&self, data: &Data) -> bool {
         match self.attr {
-            "$name" => self.pat.find(&data.name).is_some(),
+            "$name" | "." => self.pat.find(&data.name).is_some(),
             attr => data
                 .fields
                 .get(attr)
@@ -214,7 +214,7 @@ impl<'text> Cond<'text> for Matches<'text> {
 impl<'text> Cond<'text> for Is<'text> {
     fn test(&self, data: &Data) -> bool {
         match self.attr {
-            "$name" => data.name == self.value,
+            "$name" | "." => data.name == self.value,
             attr => data.fields.get(attr).map_or(false, |val| val == self.value),
         }
     }
@@ -396,6 +396,11 @@ mod tests {
         check!(
             &mut state,
             "show $name is sus",
+            ["'sus' name='potatus' user='sussolini'"]
+        );
+        check!(
+            &mut state,
+            "show . is sus",
             ["'sus' name='potatus' user='sussolini'"]
         );
         check!(

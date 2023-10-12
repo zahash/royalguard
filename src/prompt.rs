@@ -14,12 +14,19 @@ const LOGO: &'static str = r#"
 "#;
 
 const HELP: &'static str = r#"
-set gmail user = sussolini pass = 'use single quote for spaces' url = mail.google.sus
-set gmail pass = updatedpassword
-del gmail
-show all
-show gmail
-show user is sussolini and (pass contains sus or url matches '.*com')
+Add, Update and Delete:
+    set gmail user = sussolini pass = 'use single quote for spaces' url = mail.google.sus
+    set gmail pass = updatedpassword
+    del gmail
+
+Show:
+    show all
+    show gmail
+    show user is sussolini and (pass contains sus or url matches '.*com')
+
+Show (filter by name):
+    show $name contains mail
+    show . contains mail
 "#;
 
 /// Royal Guard
