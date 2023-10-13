@@ -11,11 +11,15 @@ use crate::{
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Store {
     records: Vec<Record>,
+    version: String,
 }
 
 impl<'text> Store {
     pub fn new() -> Self {
-        Self { records: vec![] }
+        Self {
+            records: vec![],
+            version: env!("CARGO_PKG_VERSION").to_string(),
+        }
     }
 
     pub fn get(&self, query: Query<'text>) -> Vec<Record> {
