@@ -88,9 +88,9 @@ pub fn run() -> anyhow::Result<()> {
                 if !line.is_empty() {
                     editor.add_history_entry(&line)?;
                     match eval(&line, &mut store) {
-                        Ok(d) => {
-                            for data in d {
-                                println!("{}", data);
+                        Ok(eval) => {
+                            for r in eval.records {
+                                println!("{}", r);
                             }
                         }
                         Err(e) => eprintln!("!! {:?}", e),

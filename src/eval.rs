@@ -4,32 +4,50 @@ use crate::store::Record;
 use crate::store::Store;
 
 #[derive(Debug)]
-pub enum EvaluatorError<'text> {
+pub enum EvalError<'text> {
     LexError(LexError),
     ParseError(ParseError<'text>),
-    ImportError(ImportError),
 }
 
-#[derive(Debug)]
-pub enum ImportError {
-    IoError(std::io::Error),
-    SerdeError(serde_json::Error),
+pub struct Evaluation {
+    pub records: Vec<Record>,
+    pub reveal: bool,
 }
 
-pub fn eval<'text>(
-    text: &'text str,
-    state: &mut Store,
-) -> Result<Vec<Record>, EvaluatorError<'text>> {
+impl Evaluation {
+    pub fn hidden(records: Vec<Record>) -> Self {
+        Self {
+            records,
+            reveal: false,
+        }
+    }
+
+    pub fn revealed(records: Vec<Record>) -> Self {
+        Self {
+            records,
+            reveal: true,
+        }
+    }
+
+    pub fn empty() -> Self {
+        Self {
+            records: vec![],
+            reveal: false,
+        }
+    }
+}
+
+pub fn eval<'text>(text: &'text str, state: &mut Store) -> Result<Evaluation, EvalError<'text>> {
     let tokens = lex(text)?;
     let cmd = parse(&tokens)?;
 
     match cmd {
         Cmd::Set { name, assignments } => {
             state.set(name, assignments);
-            Ok(vec![])
+            Ok(Evaluation::empty())
         }
-        Cmd::Del { name } => Ok(state.del(name).into_iter().collect()),
-        Cmd::Show(query) => Ok(state.get(query)),
+        Cmd::Del { name } => Ok(Evaluation::hidden(Vec::from_iter(state.del(name)))),
+        Cmd::Show(query) => Ok(Evaluation::hidden(state.get(query))),
         Cmd::History { name: _ } => unimplemented!("history feature coming soon"),
         Cmd::Import(_) => unimplemented!("import feature coming soon"),
     }
@@ -118,27 +136,15 @@ impl<'text> Cond<'text> for Is<'text> {
     }
 }
 
-impl<'text> From<LexError> for EvaluatorError<'text> {
+impl<'text> From<LexError> for EvalError<'text> {
     fn from(value: LexError) -> Self {
-        EvaluatorError::LexError(value)
+        EvalError::LexError(value)
     }
 }
 
-impl<'text> From<ParseError<'text>> for EvaluatorError<'text> {
+impl<'text> From<ParseError<'text>> for EvalError<'text> {
     fn from(value: ParseError<'text>) -> Self {
-        EvaluatorError::ParseError(value)
-    }
-}
-
-impl<'text> From<std::io::Error> for EvaluatorError<'text> {
-    fn from(value: std::io::Error) -> Self {
-        EvaluatorError::ImportError(ImportError::IoError(value))
-    }
-}
-
-impl<'text> From<serde_json::Error> for EvaluatorError<'text> {
-    fn from(value: serde_json::Error) -> Self {
-        EvaluatorError::ImportError(ImportError::SerdeError(value))
+        EvalError::ParseError(value)
     }
 }
 
@@ -152,8 +158,8 @@ mod tests {
             $expected.sort();
 
             let mut data = eval($cmd, &mut $state).expect(&format!("unable to eval {}", $cmd));
-            data.sort_by(|d1, d2| d1.name.cmp(&d2.name));
-            let data: Vec<String> = data.into_iter().map(|d| format!("{}", d)).collect();
+            data.records.sort_by(|d1, d2| d1.name.cmp(&d2.name));
+            let data: Vec<String> = data.records.into_iter().map(|d| format!("{}", d)).collect();
 
             assert_eq!(data, $expected);
         };
