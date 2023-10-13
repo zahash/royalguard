@@ -4,13 +4,16 @@ use regex::Regex;
 
 use crate::lex::*;
 
-// <cmd> ::= set <value> {<assign>}*
-//         | del <value> {<attr>}*
+// <cmd> ::= set <name> {<assign>}*
+//         | del <name> {<attr>}*
 //         | show <query>
-//         | history <value>
+//         | reveal <query>
+//         | copy <name> <attr>
+//         | history <name>
+//         | import <value>
 
 // <assign> ::= sensitive? <attr> = <value>
-// <attr> ::= <value> ::= [^'\n\s\t\(\)]+|'[^'\n]+'
+// <name> ::= <attr> ::= <value> ::= [^'\n\s\t\(\)]+|'[^'\n]+'
 
 // <query> ::= <or> | <value> | all
 // <or> ::= <and> | <or> or <and>
@@ -23,6 +26,7 @@ use crate::lex::*;
 #[derive(Debug)]
 pub enum ParseError<'text> {
     SyntaxError(usize, &'static str),
+    ExpectedName(usize),
     ExpectedAttr(usize),
     ExpectedValue(usize),
     Expected(Token<'static>, usize),
@@ -51,6 +55,10 @@ pub enum Cmd<'text> {
     },
     Show(Query<'text>),
     Reveal(Query<'text>),
+    Copy {
+        name: &'text str,
+        attr: &'text str,
+    },
     History {
         name: &'text str,
     },
@@ -69,6 +77,7 @@ fn parse_cmd<'text>(
             Box::new(parse_cmd_del),
             Box::new(parse_cmd_show),
             Box::new(parse_cmd_reveal),
+            Box::new(parse_cmd_copy),
             Box::new(parse_cmd_history),
             Box::new(parse_cmd_import),
         ],
@@ -98,7 +107,7 @@ fn parse_cmd_set<'text>(
     };
 
     let Some(Token::Value(name)) = tokens.get(pos + 1) else {
-        return Err(ParseError::ExpectedValue(pos));
+        return Err(ParseError::ExpectedName(pos));
     };
 
     let (assignments, pos) = many(tokens, pos + 2, parse_assign);
@@ -132,7 +141,7 @@ fn parse_cmd_del<'text>(
     };
 
     let Some(Token::Value(name)) = tokens.get(pos + 1) else {
-        return Err(ParseError::ExpectedValue(pos + 1));
+        return Err(ParseError::ExpectedName(pos + 1));
     };
 
     let (attrs, pos) = many(tokens, pos + 2, parse_attr);
@@ -166,6 +175,25 @@ fn parse_cmd_reveal<'text>(
     Ok((Cmd::Reveal(query), pos))
 }
 
+fn parse_cmd_copy<'text>(
+    tokens: &[Token<'text>],
+    pos: usize,
+) -> Result<(Cmd<'text>, usize), ParseError<'text>> {
+    let Some(Token::Keyword("copy")) = tokens.get(pos) else {
+        return Err(ParseError::Expected(Token::Keyword("copy"), pos));
+    };
+
+    let Some(Token::Value(name)) = tokens.get(pos + 1) else {
+        return Err(ParseError::ExpectedName(pos + 1));
+    };
+
+    let Some(Token::Value(attr)) = tokens.get(pos + 2) else {
+        return Err(ParseError::ExpectedAttr(pos + 2));
+    };
+
+    Ok((Cmd::Copy { name, attr }, pos + 3))
+}
+
 fn parse_cmd_history<'text>(
     tokens: &[Token<'text>],
     pos: usize,
@@ -175,7 +203,7 @@ fn parse_cmd_history<'text>(
     };
 
     let Some(Token::Value(name)) = tokens.get(pos + 1) else {
-        return Err(ParseError::ExpectedValue(pos + 1));
+        return Err(ParseError::ExpectedName(pos + 1));
     };
 
     Ok((Cmd::History { name }, pos + 2))
@@ -475,23 +503,22 @@ impl<'text> Display for Cmd<'text> {
         match self {
             Cmd::Set { name, assignments } => {
                 write!(f, "set '{}'", name)?;
-                if !assignments.is_empty() {
-                    write!(f, " ")?;
-                    write_arr(f, assignments, " ")?;
+                for assign in assignments {
+                    write!(f, " {}", assign)?;
                 }
                 Ok(())
             }
             Cmd::Del { name, attrs } => {
                 write!(f, "del '{}'", name)?;
-                if !attrs.is_empty() {
-                    write!(f, " ")?;
-                    write_arr(f, &attrs, " ")?;
+                for attr in attrs {
+                    write!(f, " '{}'", attr)?;
                 }
                 Ok(())
             }
             Cmd::Show(q) => write!(f, "show {}", q),
             Cmd::Reveal(q) => write!(f, "reveal {}", q),
-            Cmd::History { name } => write!(f, "history {}", name),
+            Cmd::Copy { name, attr } => write!(f, "copy '{}' '{}'", name, attr),
+            Cmd::History { name } => write!(f, "history '{}'", name),
             Cmd::Import(fpath) => write!(f, "import '{}'", fpath),
         }
     }
@@ -563,19 +590,19 @@ impl<'text> Display for Is<'text> {
     }
 }
 
-fn write_arr<T>(f: &mut std::fmt::Formatter<'_>, arr: &[T], sep: &str) -> std::fmt::Result
-where
-    T: Display,
-{
-    if let Some(item) = arr.get(0) {
-        write!(f, "{}", item)?;
-        for item in &arr[1..] {
-            write!(f, "{}{}", sep, item)?;
-        }
-    }
+// fn write_arr<T>(f: &mut std::fmt::Formatter<'_>, arr: &[T], sep: &str) -> std::fmt::Result
+// where
+//     T: Display,
+// {
+//     if let Some(item) = arr.get(0) {
+//         write!(f, "{}", item)?;
+//         for item in &arr[1..] {
+//             write!(f, "{}{}", sep, item)?;
+//         }
+//     }
 
-    Ok(())
-}
+//     Ok(())
+// }
 
 impl<'text> From<And<'text>> for Or<'text> {
     fn from(value: And<'text>) -> Self {
@@ -642,7 +669,7 @@ mod tests {
     fn test_cmd_del() {
         check!(parse_cmd, "del 'gmail'");
         check!(parse_cmd, "delete 'gmail'", "del 'gmail'");
-        check!(parse_cmd, "del 'gmail' user pass");
+        check!(parse_cmd, "del 'gmail' 'user' 'pass'");
     }
 
     #[test]
@@ -675,6 +702,11 @@ mod tests {
             "reveal user is 'a' and user contains 'a' or user matches 'a'",
             "reveal ((user is 'a' and user contains 'a') or user matches 'a')"
         );
+    }
+
+    #[test]
+    fn test_cmd_copy() {
+        check!(parse_cmd, "copy 'gmail' 'pass'");
     }
 
     #[test]

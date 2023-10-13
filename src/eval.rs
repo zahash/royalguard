@@ -1,3 +1,8 @@
+use std::error::Error;
+
+use clipboard::ClipboardContext;
+use clipboard::ClipboardProvider;
+
 use crate::lex::*;
 use crate::parse::*;
 use crate::store::Record;
@@ -10,6 +15,14 @@ pub enum EvalError<'text> {
 }
 
 pub fn eval<'text>(text: &'text str, store: &mut Store) -> Result<Vec<Record>, EvalError<'text>> {
+    fn sensitize(record: &mut Record) {
+        for field in &mut record.fields {
+            if field.sensitive {
+                field.value = String::from("*****")
+            }
+        }
+    }
+
     let tokens = lex(text)?;
     let cmd = parse(&tokens)?;
 
@@ -26,16 +39,28 @@ pub fn eval<'text>(text: &'text str, store: &mut Store) -> Result<Vec<Record>, E
             let mut records = store.get(query);
 
             for record in &mut records {
-                for field in &mut record.fields {
-                    if field.sensitive {
-                        field.value = String::from("*****")
-                    }
-                }
+                sensitize(record);
             }
 
             Ok(records)
         }
         Cmd::Reveal(query) => Ok(store.get(query)),
+        Cmd::Copy { name, attr } => {
+            if let Some(mut record) = store.get(Query::Name(name)).pop() {
+                if let Some(field) = record.fields.iter().find(|f| f.attr == attr) {
+                    if let Ok(mut ctx) =
+                        ClipboardProvider::new() as Result<ClipboardContext, Box<dyn Error>>
+                    {
+                        if ctx.set_contents(field.value.clone()).is_ok() {
+                            record.fields.retain(|f| f.attr == attr);
+                            sensitize(&mut record);
+                            return Ok(vec![record]);
+                        }
+                    }
+                }
+            }
+            Ok(vec![])
+        }
         Cmd::History { name: _ } => unimplemented!("history feature coming soon"),
         Cmd::Import(_) => unimplemented!("import feature coming soon"),
     }
@@ -320,5 +345,24 @@ mod tests {
             "reveal sus",
             ["'sus' name='potatus' pass='supahotfire' user='sussolini'"]
         );
+    }
+
+    #[test]
+    fn test_copy() {
+        let mut store = Store::new();
+
+        check!(&mut store, "copy gmail pass", [] as [String; 0]);
+
+        eval!(&mut store, "set gmail");
+        check!(&mut store, "copy gmail pass", [] as [String; 0]);
+
+        eval!(&mut store, "set gmail url = mail.google.com");
+        check!(&mut store, "copy gmail pass", [] as [String; 0]);
+
+        eval!(&mut store, "set gmail pass = gpass");
+        check!(&mut store, "copy gmail pass", ["'gmail' pass='gpass'"]);
+
+        eval!(&mut store, "set gmail sensitive pass = gpass");
+        check!(&mut store, "copy gmail pass", ["'gmail' pass='*****'"]);
     }
 }
