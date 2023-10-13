@@ -16,7 +16,7 @@ const LOGO: &'static str = r#"
 const HELP: &'static str = r#"
 Add, Update:
     set gmail user = sussolini sensitive pass = 'use single quote for spaces' url = mail.google.sus
-    set gmail pass = updatedpassword
+    set gmail sensitive pass = updatedpassword
 
 Delete whole record: 
     del gmail
@@ -35,6 +35,9 @@ Show (filter by name):
 
 Reveal -- works exactly like Show but doesn't respect sensitivity
     reveal user is sussolini and (pass contains sus or url matches '.*com')
+
+Copy field to clipboard:
+    copy gmail pass
 "#;
 
 /// Royal Guard

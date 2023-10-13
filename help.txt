@@ -19,10 +19,4 @@ cargo publish
 
 TODO:
 history
-remove a field
 is =
-
-show/reveal commands (show will hide the sensitive fields and reveal will reveal even the sensitive fields)
-allow user to mark which fields are sensitive so they won't show (unless "revealed" explicitly)
-allow user to copy any field to clipboard without revealing (clipboard must expire in x seconds)
-
