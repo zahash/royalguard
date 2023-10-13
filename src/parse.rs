@@ -9,7 +9,7 @@ use crate::lex::*;
 //         | show <query>
 //         | history <value>
 
-// <assign> ::= <attr> = <value>
+// <assign> ::= sensitive? <attr> = <value>
 // <attr> ::= <value> ::= [^'\n\s\t\(\)]+|'[^'\n]+'
 
 // <query> ::= <or> | <value> | all
@@ -82,11 +82,11 @@ fn parse_cmd_set<'text>(
     fn check_duplicate_assignments<'text>(assignments: &[Assign<'text>]) -> Option<&'text str> {
         let mut seen = HashSet::new();
 
-        for Assign { attr, value: _ } in assignments {
-            if seen.contains(attr) {
-                return Some(attr);
+        for assign in assignments {
+            if seen.contains(assign.attr) {
+                return Some(assign.attr);
             }
-            seen.insert(attr);
+            seen.insert(assign.attr);
         }
 
         None
@@ -186,12 +186,18 @@ fn parse_cmd_import<'text>(
 pub struct Assign<'text> {
     pub attr: &'text str,
     pub value: &'text str,
+    pub sensitive: bool,
 }
 
 fn parse_assign<'text>(
     tokens: &[Token<'text>],
     pos: usize,
 ) -> Result<(Assign<'text>, usize), ParseError<'text>> {
+    let (sensitive, pos) = match tokens.get(pos) {
+        Some(Token::Keyword("sensitive")) | Some(Token::Keyword("secret")) => (true, pos + 1),
+        _ => (false, pos),
+    };
+
     let Some(Token::Value(attr)) = tokens.get(pos) else {
         return Err(ParseError::ExpectedAttr(pos));
     };
@@ -204,7 +210,14 @@ fn parse_assign<'text>(
         return Err(ParseError::ExpectedValue(pos + 2));
     };
 
-    Ok((Assign { attr, value }, pos + 3))
+    Ok((
+        Assign {
+            attr,
+            value,
+            sensitive,
+        },
+        pos + 3,
+    ))
 }
 
 pub enum Query<'text> {
@@ -466,7 +479,10 @@ impl<'text> Display for Cmd<'text> {
 
 impl<'text> Display for Assign<'text> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} = '{}'", self.attr, self.value)
+        match self.sensitive {
+            true => write!(f, "sensitive {} = '{}'", self.attr, self.value),
+            false => write!(f, "{} = '{}'", self.attr, self.value),
+        }
     }
 }
 
@@ -582,7 +598,7 @@ mod tests {
             let (stmt, pos) = $f(&tokens, 0).expect("** Unable to parse statement");
             assert_eq!(pos, tokens.len(), "** Unable to parse all Tokens\n{}", stmt);
             let stmt = format!("{}", stmt);
-            assert_eq!($expected, stmt);
+            assert_eq!(stmt, $expected);
         };
         ($f:ident, $src:expr) => {
             check!($f, $src, $src)
@@ -591,12 +607,15 @@ mod tests {
 
     #[test]
     fn test_cmd_set() {
+        check!(parse_cmd, "set 'gmail'");
         check!(
             parse_cmd,
             "set 'gmail' user = 'zahash' pass = 'supersecretpass' url = 'mail.google.com'"
         );
-
-        check!(parse_cmd, "set 'gmail'");
+        check!(
+            parse_cmd,
+            "set 'gmail' user = 'zahash' sensitive pass = 'supersecretpass' url = 'mail.google.com'"
+        );
     }
 
     #[test]
@@ -623,18 +642,18 @@ mod tests {
 
     #[test]
     fn test_cmd_reveal() {
-        // check!(parse_cmd, "reveal all");
-        // check!(parse_cmd, "show 'gmail'");
-        // check!(
-        //     parse_cmd,
-        //     "show user is 'a' or user contains 'a' and user matches 'a'",
-        //     "show (user is 'a' or (user contains 'a' and user matches 'a'))"
-        // );
-        // check!(
-        //     parse_cmd,
-        //     "show user is 'a' and user contains 'a' or user matches 'a'",
-        //     "show ((user is 'a' and user contains 'a') or user matches 'a')"
-        // );
+        check!(parse_cmd, "reveal all");
+        check!(parse_cmd, "reveal 'gmail'");
+        check!(
+            parse_cmd,
+            "reveal user is 'a' or user contains 'a' and user matches 'a'",
+            "reveal (user is 'a' or (user contains 'a' and user matches 'a'))"
+        );
+        check!(
+            parse_cmd,
+            "reveal user is 'a' and user contains 'a' or user matches 'a'",
+            "reveal ((user is 'a' and user contains 'a') or user matches 'a')"
+        );
     }
 
     #[test]

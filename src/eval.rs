@@ -217,7 +217,7 @@ mod tests {
     }
 
     #[test]
-    fn test_show() {
+    fn test_show_reveal() {
         let mut store = Store::new();
 
         eval!(
@@ -232,7 +232,6 @@ mod tests {
             "show discord",
             ["'discord' pass='dpass123' url='discord.com' user='hazash'"]
         );
-
         check!(
             &mut store,
             "show all",
@@ -242,7 +241,6 @@ mod tests {
                 "'twitch' pass='tpass123' user='amogus'"
             ]
         );
-
         check!(
             &mut store,
             r#"show user contains ash and url matches '\.com'"#,
@@ -251,7 +249,6 @@ mod tests {
                 "'gmail' pass='pass123' url='mail.google.com' user='zahash'"
             ]
         );
-
         check!(
             &mut store,
             r#"show url contains google or user is amogus"#,
@@ -260,7 +257,6 @@ mod tests {
                 "'twitch' pass='tpass123' user='amogus'"
             ]
         );
-
         check!(
             &mut store,
             "show pass matches '[a-z]+123' and ( user is amogus or user contains 'ash' )",
@@ -275,6 +271,11 @@ mod tests {
         check!(&mut store, "show name is sus", [] as [String; 0]);
         check!(
             &mut store,
+            "show name is potatus",
+            ["'sus' name='potatus' user='sussolini'"]
+        );
+        check!(
+            &mut store,
             "show $name is sus",
             ["'sus' name='potatus' user='sussolini'"]
         );
@@ -283,10 +284,24 @@ mod tests {
             "show . is sus",
             ["'sus' name='potatus' user='sussolini'"]
         );
+
+        eval!(&mut store, "set sus secret pass = supahotfire");
         check!(
             &mut store,
-            "show name is potatus",
-            ["'sus' name='potatus' user='sussolini'"]
+            "show sus",
+            ["'sus' name='potatus' pass='*****' user='sussolini'"]
+        );
+
+        eval!(&mut store, "set sus sensitive user = sussolini");
+        check!(
+            &mut store,
+            "show sus",
+            ["'sus' name='potatus' pass='*****' user='*****'"]
+        );
+        check!(
+            &mut store,
+            "reveal sus",
+            ["'sus' name='potatus' pass='supahotfire' user='sussolini'"]
         );
     }
 }

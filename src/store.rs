@@ -46,12 +46,17 @@ impl<'text> Store {
             }
         };
 
-        for Assign { attr, value } in assignments {
+        for Assign {
+            attr,
+            value,
+            sensitive,
+        } in assignments
+        {
             record.fields.retain(|f| f.attr != attr);
             record.fields.push(Field {
                 attr: attr.to_string(),
                 value: value.to_string(),
-                sensitive: false,
+                sensitive,
             });
         }
     }
