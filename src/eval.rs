@@ -1,7 +1,4 @@
-use std::error::Error;
-
-use clipboard::ClipboardContext;
-use clipboard::ClipboardProvider;
+use arboard::Clipboard;
 
 use crate::lex::*;
 use crate::parse::*;
@@ -48,10 +45,8 @@ pub fn eval<'text>(text: &'text str, store: &mut Store) -> Result<Vec<Record>, E
         Cmd::Copy { name, attr } => {
             if let Some(mut record) = store.get(Query::Name(name)).pop() {
                 if let Some(field) = record.fields.iter().find(|f| f.attr == attr) {
-                    if let Ok(mut ctx) =
-                        ClipboardProvider::new() as Result<ClipboardContext, Box<dyn Error>>
-                    {
-                        if ctx.set_contents(field.value.clone()).is_ok() {
+                    if let Ok(mut clipboard) = Clipboard::new() {
+                        if clipboard.set_text(field.value.clone()).is_ok() {
                             record.fields.retain(|f| f.attr == attr);
                             sensitize(&mut record);
                             return Ok(vec![record]);
