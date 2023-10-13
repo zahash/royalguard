@@ -1,10 +1,11 @@
-use std::{collections::HashMap, fmt::Display};
+use std::collections::HashMap;
 
 use uuid::Uuid;
 
 use crate::lex::*;
 use crate::parse::*;
 use crate::store::Data;
+use crate::store::Field;
 
 #[derive(Debug)]
 pub enum EvaluatorError<'text> {
@@ -66,11 +67,16 @@ impl<'text> State {
         let data = self.data.entry(name.to_string()).or_insert(Data {
             id: Uuid::new_v4(),
             name: name.to_string(),
-            fields: HashMap::new(),
+            fields: Vec::new(),
         });
 
         for Assign { attr, value } in assignments {
-            data.fields.insert(attr.to_string(), value.to_string());
+            data.fields.retain(|f| f.attr != attr);
+            data.fields.push(Field {
+                attr: attr.to_string(),
+                value: value.to_string(),
+                sensitive: false,
+            });
         }
     }
 
@@ -105,11 +111,15 @@ impl<'text> State {
             let mut data = Data {
                 id: Uuid::new_v4(),
                 name: name.clone(),
-                fields: HashMap::new(),
+                fields: Vec::new(),
             };
 
             for (attr, value) in fields {
-                data.fields.insert(attr, value);
+                data.fields.push(Field {
+                    attr,
+                    value,
+                    sensitive: false,
+                });
             }
 
             self.data.insert(name, data.clone());
@@ -192,8 +202,9 @@ impl<'text> Cond<'text> for Contains<'text> {
             "$name" | "." => data.name.contains(self.substr),
             attr => data
                 .fields
-                .get(attr)
-                .map_or(false, |val| val.contains(self.substr)),
+                .iter()
+                .find(|f| f.attr == attr)
+                .map_or(false, |f| f.value.contains(self.substr)),
         }
     }
 }
@@ -204,8 +215,9 @@ impl<'text> Cond<'text> for Matches<'text> {
             "$name" | "." => self.pat.find(&data.name).is_some(),
             attr => data
                 .fields
-                .get(attr)
-                .and_then(|val| self.pat.find(val))
+                .iter()
+                .find(|f| f.attr == attr)
+                .and_then(|f| self.pat.find(&f.value))
                 .is_some(),
         }
     }
@@ -215,22 +227,12 @@ impl<'text> Cond<'text> for Is<'text> {
     fn test(&self, data: &Data) -> bool {
         match self.attr {
             "$name" | "." => data.name == self.value,
-            attr => data.fields.get(attr).map_or(false, |val| val == self.value),
+            attr => data
+                .fields
+                .iter()
+                .find(|f| f.attr == attr)
+                .map_or(false, |f| f.value == self.value),
         }
-    }
-}
-
-impl<'text> Display for Data {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "'{}'", self.name)?;
-
-        let mut fields = self.fields.iter().collect::<Vec<(&String, &String)>>();
-        fields.sort_by_key(|&(k, _)| k);
-
-        for (k, v) in fields {
-            write!(f, " {}='{}'", k, v)?;
-        }
-        Ok(())
     }
 }
 
@@ -304,13 +306,20 @@ mod tests {
             ["'gmail' pass='supersecretpass' url='mail.google.com' user='zahash'"]
         );
 
+        eval!(&mut state, "set gmail pass = updatedpass");
+        check!(
+            &mut state,
+            "show all",
+            ["'gmail' pass='updatedpass' url='mail.google.com' user='zahash'"]
+        );
+
         eval!(&mut state, "set discord url = discord.com tags = chat,call");
         check!(
             &mut state,
             "show all",
             [
                 "'discord' tags='chat,call' url='discord.com'",
-                "'gmail' pass='supersecretpass' url='mail.google.com' user='zahash'",
+                "'gmail' pass='updatedpass' url='mail.google.com' user='zahash'",
             ]
         );
     }
