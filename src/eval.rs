@@ -9,45 +9,30 @@ pub enum EvalError<'text> {
     ParseError(ParseError<'text>),
 }
 
-pub struct Evaluation {
-    pub records: Vec<Record>,
-    pub reveal: bool,
-}
-
-impl Evaluation {
-    pub fn hidden(records: Vec<Record>) -> Self {
-        Self {
-            records,
-            reveal: false,
-        }
-    }
-
-    pub fn revealed(records: Vec<Record>) -> Self {
-        Self {
-            records,
-            reveal: true,
-        }
-    }
-
-    pub fn empty() -> Self {
-        Self {
-            records: vec![],
-            reveal: false,
-        }
-    }
-}
-
-pub fn eval<'text>(text: &'text str, state: &mut Store) -> Result<Evaluation, EvalError<'text>> {
+pub fn eval<'text>(text: &'text str, store: &mut Store) -> Result<Vec<Record>, EvalError<'text>> {
     let tokens = lex(text)?;
     let cmd = parse(&tokens)?;
 
     match cmd {
         Cmd::Set { name, assignments } => {
-            state.set(name, assignments);
-            Ok(Evaluation::empty())
+            store.set(name, assignments);
+            Ok(vec![])
         }
-        Cmd::Del { name } => Ok(Evaluation::hidden(Vec::from_iter(state.del(name)))),
-        Cmd::Show(query) => Ok(Evaluation::hidden(state.get(query))),
+        Cmd::Del { name } => Ok(Vec::from_iter(store.del(name))),
+        Cmd::Show(query) => {
+            let mut records = store.get(query);
+
+            for record in &mut records {
+                for field in &mut record.fields {
+                    if field.sensitive {
+                        field.value = String::from("*****")
+                    }
+                }
+            }
+
+            Ok(records)
+        }
+        Cmd::Reveal(query) => Ok(store.get(query)),
         Cmd::History { name: _ } => unimplemented!("history feature coming soon"),
         Cmd::Import(_) => unimplemented!("import feature coming soon"),
     }
@@ -154,54 +139,54 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     macro_rules! check {
-        ($state:expr, $cmd:expr, $expected:expr) => {
+        ($store:expr, $cmd:expr, $expected:expr) => {
             $expected.sort();
 
-            let mut data = eval($cmd, &mut $state).expect(&format!("unable to eval {}", $cmd));
-            data.records.sort_by(|d1, d2| d1.name.cmp(&d2.name));
-            let data: Vec<String> = data.records.into_iter().map(|d| format!("{}", d)).collect();
+            let mut data = eval($cmd, &mut $store).expect(&format!("unable to eval {}", $cmd));
+            data.sort_by(|d1, d2| d1.name.cmp(&d2.name));
+            let data: Vec<String> = data.into_iter().map(|d| format!("{}", d)).collect();
 
             assert_eq!(data, $expected);
         };
     }
 
     macro_rules! eval {
-        ($state:expr, $($cmd:expr),*) => {
-            $ ( eval($cmd, $state).expect(&format!("unable to eval {}", $cmd)); )*
+        ($store:expr, $($cmd:expr),*) => {
+            $ ( eval($cmd, $store).expect(&format!("unable to eval {}", $cmd)); )*
         };
     }
 
     #[test]
     fn test_set() {
-        let mut state = Store::new();
+        let mut store = Store::new();
 
-        eval!(&mut state, "set gmail");
-        check!(&mut state, "show all", ["'gmail'"]);
+        eval!(&mut store, "set gmail");
+        check!(&mut store, "show all", ["'gmail'"]);
 
-        eval!(&mut state, "set gmail user = zahash pass = supersecretpass");
+        eval!(&mut store, "set gmail user = zahash pass = supersecretpass");
         check!(
-            &mut state,
+            &mut store,
             "show all",
             ["'gmail' pass='supersecretpass' user='zahash'"]
         );
 
-        eval!(&mut state, "set gmail url = mail.google.com");
+        eval!(&mut store, "set gmail url = mail.google.com");
         check!(
-            &mut state,
+            &mut store,
             "show all",
             ["'gmail' pass='supersecretpass' url='mail.google.com' user='zahash'"]
         );
 
-        eval!(&mut state, "set gmail pass = updatedpass");
+        eval!(&mut store, "set gmail pass = updatedpass");
         check!(
-            &mut state,
+            &mut store,
             "show all",
             ["'gmail' pass='updatedpass' url='mail.google.com' user='zahash'"]
         );
 
-        eval!(&mut state, "set discord url = discord.com tags = chat,call");
+        eval!(&mut store, "set discord url = discord.com tags = chat,call");
         check!(
-            &mut state,
+            &mut store,
             "show all",
             [
                 "'discord' tags='chat,call' url='discord.com'",
@@ -212,44 +197,44 @@ mod tests {
 
     #[test]
     fn test_del() {
-        let mut state = Store::new();
+        let mut store = Store::new();
 
-        check!(&mut state, "delete gmail", [] as [String; 0]);
+        check!(&mut store, "delete gmail", [] as [String; 0]);
 
-        eval!(&mut state, "set gmail url = mail.google.com");
+        eval!(&mut store, "set gmail url = mail.google.com");
 
-        check!(&mut state, "delete discord", [] as [String; 0]);
+        check!(&mut store, "delete discord", [] as [String; 0]);
 
-        eval!(&mut state, "set discord url = discord.com");
+        eval!(&mut store, "set discord url = discord.com");
 
         check!(
-            &mut state,
+            &mut store,
             "delete gmail",
             ["'gmail' url='mail.google.com'"]
         );
 
-        check!(&mut state, "show all", ["'discord' url='discord.com'"]);
+        check!(&mut store, "show all", ["'discord' url='discord.com'"]);
     }
 
     #[test]
     fn test_show() {
-        let mut state = Store::new();
+        let mut store = Store::new();
 
         eval!(
-            &mut state,
+            &mut store,
             "set gmail user = zahash pass = pass123 url = mail.google.com",
             "set discord user = hazash pass = dpass123 url = discord.com",
             "set twitch user = amogus pass = tpass123"
         );
 
         check!(
-            &mut state,
+            &mut store,
             "show discord",
             ["'discord' pass='dpass123' url='discord.com' user='hazash'"]
         );
 
         check!(
-            &mut state,
+            &mut store,
             "show all",
             [
                 "'discord' pass='dpass123' url='discord.com' user='hazash'",
@@ -259,7 +244,7 @@ mod tests {
         );
 
         check!(
-            &mut state,
+            &mut store,
             r#"show user contains ash and url matches '\.com'"#,
             [
                 "'discord' pass='dpass123' url='discord.com' user='hazash'",
@@ -268,7 +253,7 @@ mod tests {
         );
 
         check!(
-            &mut state,
+            &mut store,
             r#"show url contains google or user is amogus"#,
             [
                 "'gmail' pass='pass123' url='mail.google.com' user='zahash'",
@@ -277,7 +262,7 @@ mod tests {
         );
 
         check!(
-            &mut state,
+            &mut store,
             "show pass matches '[a-z]+123' and ( user is amogus or user contains 'ash' )",
             [
                 "'discord' pass='dpass123' url='discord.com' user='hazash'",
@@ -286,20 +271,20 @@ mod tests {
             ]
         );
 
-        eval!(&mut state, "set sus user = sussolini name = potatus");
-        check!(&mut state, "show name is sus", [] as [String; 0]);
+        eval!(&mut store, "set sus user = sussolini name = potatus");
+        check!(&mut store, "show name is sus", [] as [String; 0]);
         check!(
-            &mut state,
+            &mut store,
             "show $name is sus",
             ["'sus' name='potatus' user='sussolini'"]
         );
         check!(
-            &mut state,
+            &mut store,
             "show . is sus",
             ["'sus' name='potatus' user='sussolini'"]
         );
         check!(
-            &mut state,
+            &mut store,
             "show name is potatus",
             ["'sus' name='potatus' user='sussolini'"]
         );

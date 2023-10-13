@@ -49,6 +49,7 @@ pub enum Cmd<'text> {
         name: &'text str,
     },
     Show(Query<'text>),
+    Reveal(Query<'text>),
     History {
         name: &'text str,
     },
@@ -66,6 +67,7 @@ fn parse_cmd<'text>(
             Box::new(parse_cmd_set),
             Box::new(parse_cmd_del),
             Box::new(parse_cmd_show),
+            Box::new(parse_cmd_reveal),
             Box::new(parse_cmd_history),
             Box::new(parse_cmd_import),
         ],
@@ -77,6 +79,19 @@ fn parse_cmd_set<'text>(
     tokens: &[Token<'text>],
     pos: usize,
 ) -> Result<(Cmd<'text>, usize), ParseError<'text>> {
+    fn check_duplicate_assignments<'text>(assignments: &[Assign<'text>]) -> Option<&'text str> {
+        let mut seen = HashSet::new();
+
+        for Assign { attr, value: _ } in assignments {
+            if seen.contains(attr) {
+                return Some(attr);
+            }
+            seen.insert(attr);
+        }
+
+        None
+    }
+
     let Some(Token::Keyword("set")) = tokens.get(pos) else {
         return Err(ParseError::Expected(Token::Keyword("set"), pos));
     };
@@ -92,19 +107,6 @@ fn parse_cmd_set<'text>(
     }
 
     Ok((Cmd::Set { name, assignments }, pos))
-}
-
-fn check_duplicate_assignments<'text>(assignments: &[Assign<'text>]) -> Option<&'text str> {
-    let mut seen = HashSet::new();
-
-    for Assign { attr, value: _ } in assignments {
-        if seen.contains(attr) {
-            return Some(attr);
-        }
-        seen.insert(attr);
-    }
-
-    None
 }
 
 fn parse_cmd_del<'text>(
@@ -136,6 +138,19 @@ fn parse_cmd_show<'text>(
     let (query, pos) = parse_query(tokens, pos + 1)?;
 
     Ok((Cmd::Show(query), pos))
+}
+
+fn parse_cmd_reveal<'text>(
+    tokens: &[Token<'text>],
+    pos: usize,
+) -> Result<(Cmd<'text>, usize), ParseError<'text>> {
+    let Some(Token::Keyword("reveal")) = tokens.get(pos) else {
+        return Err(ParseError::Expected(Token::Keyword("reveal"), pos));
+    };
+
+    let (query, pos) = parse_query(tokens, pos + 1)?;
+
+    Ok((Cmd::Reveal(query), pos))
 }
 
 fn parse_cmd_history<'text>(
@@ -442,6 +457,7 @@ impl<'text> Display for Cmd<'text> {
             }
             Cmd::Del { name } => write!(f, "del '{}'", name),
             Cmd::Show(q) => write!(f, "show {}", q),
+            Cmd::Reveal(q) => write!(f, "reveal {}", q),
             Cmd::History { name } => write!(f, "history {}", name),
             Cmd::Import(fpath) => write!(f, "import '{}'", fpath),
         }
@@ -603,6 +619,22 @@ mod tests {
             "show user is 'a' and user contains 'a' or user matches 'a'",
             "show ((user is 'a' and user contains 'a') or user matches 'a')"
         );
+    }
+
+    #[test]
+    fn test_cmd_reveal() {
+        // check!(parse_cmd, "reveal all");
+        // check!(parse_cmd, "show 'gmail'");
+        // check!(
+        //     parse_cmd,
+        //     "show user is 'a' or user contains 'a' and user matches 'a'",
+        //     "show (user is 'a' or (user contains 'a' and user matches 'a'))"
+        // );
+        // check!(
+        //     parse_cmd,
+        //     "show user is 'a' and user contains 'a' or user matches 'a'",
+        //     "show ((user is 'a' and user contains 'a') or user matches 'a')"
+        // );
     }
 
     #[test]
