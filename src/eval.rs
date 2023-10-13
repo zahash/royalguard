@@ -2,10 +2,10 @@ use std::collections::HashMap;
 
 use uuid::Uuid;
 
+use crate::data::Data;
+use crate::data::Field;
 use crate::lex::*;
 use crate::parse::*;
-use crate::store::Data;
-use crate::store::Field;
 
 #[derive(Debug)]
 pub enum EvaluatorError<'text> {

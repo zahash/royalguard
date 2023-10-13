@@ -12,7 +12,7 @@ use ring::{
 };
 use std::{num::NonZeroU32, path::Path};
 
-use crate::store::Data;
+use crate::data::Data;
 
 pub fn load<P: AsRef<Path>>(fpath: P, master_pass: &str) -> anyhow::Result<Vec<Data>> {
     create_new_file_if_not_exists(&fpath, master_pass)?;
