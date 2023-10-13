@@ -27,22 +27,6 @@ Show:
 Show (filter by name):
     show $name contains mail
     show . contains mail
-
-Import:
-    import 'path/to/file.json'
-
-Importing requires this data format
-{
-    "gmail": {
-        "user": "benito sussolini",
-        "pass": "potatus",
-        "url": "mail.google.sus"
-    },
-    "discord": {
-        "user": "pablo susscobar",
-        "pass": "cocainum",
-    }
-}
 "#;
 
 /// Royal Guard
@@ -75,9 +59,7 @@ pub fn run() -> anyhow::Result<()> {
         return Ok(());
     };
 
-    let data = load(&fpath, &master_pass)?;
-
-    let mut state = State::from(data);
+    let mut store = load(&fpath, &master_pass)?;
     let mut editor = rustyline::DefaultEditor::new()?;
 
     println!("{}", LOGO);
@@ -93,19 +75,19 @@ pub fn run() -> anyhow::Result<()> {
             Ok(s) if s == "help" || s == "HELP" => println!("{}", HELP),
             Ok(s) if s == "exit" || s == "quit" => {
                 println!("saving to '{}' ...", &fpath);
-                dump(&fpath, &master_pass, state.into())?;
+                dump(&fpath, &master_pass, store)?;
                 println!("saved successfully!");
                 break;
             }
             Ok(s) if s == "save" => {
                 println!("saving to '{}' ...", &fpath);
-                dump(&fpath, &master_pass, state.clone().into())?;
+                dump(&fpath, &master_pass, store.clone())?;
                 println!("saved successfully!");
             }
             Ok(line) => {
                 if !line.is_empty() {
                     editor.add_history_entry(&line)?;
-                    match eval(&line, &mut state) {
+                    match eval(&line, &mut store) {
                         Ok(d) => {
                             for data in d {
                                 println!("{}", data);
@@ -118,14 +100,14 @@ pub fn run() -> anyhow::Result<()> {
             Err(ReadlineError::Interrupted) => {
                 println!("CTRL-C");
                 println!("saving to '{}' ...", &fpath);
-                dump(&fpath, &master_pass, state.into())?;
+                dump(&fpath, &master_pass, store)?;
                 println!("saved successfully!");
                 break;
             }
             Err(ReadlineError::Eof) => {
                 println!("CTRL-D");
                 println!("saving to '{}' ...", &fpath);
-                dump(&fpath, &master_pass, state.into())?;
+                dump(&fpath, &master_pass, store)?;
                 println!("saved successfully!");
                 break;
             }

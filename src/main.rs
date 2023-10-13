@@ -3,7 +3,7 @@ mod eval;
 mod lex;
 mod parse;
 mod prompt;
-mod data;
+mod store;
 
 fn main() -> anyhow::Result<()> {
     prompt::run()

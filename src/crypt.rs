@@ -12,9 +12,9 @@ use ring::{
 };
 use std::{num::NonZeroU32, path::Path};
 
-use crate::data::Data;
+use crate::store::Store;
 
-pub fn load<P: AsRef<Path>>(fpath: P, master_pass: &str) -> anyhow::Result<Vec<Data>> {
+pub fn load<P: AsRef<Path>>(fpath: P, master_pass: &str) -> anyhow::Result<Store> {
     create_new_file_if_not_exists(&fpath, master_pass)?;
     let encrypted_file = std::fs::read(&fpath)?;
     let salt = &encrypted_file[..16];
@@ -25,17 +25,16 @@ pub fn load<P: AsRef<Path>>(fpath: P, master_pass: &str) -> anyhow::Result<Vec<D
         .decrypt(nonce.into(), encrypted_data.as_ref())
         .map_err(|_| anyhow::anyhow!("Master password incorrect."))?;
     let plain_text = String::from_utf8(plain_text)?;
-
-    Ok(serde_json::from_str::<Vec<Data>>(&plain_text)?)
+    Ok(serde_json::from_str::<Store>(&plain_text)?)
 }
 
-pub fn dump<P: AsRef<Path>>(fpath: P, master_pass: &str, data: Vec<Data>) -> anyhow::Result<()> {
+pub fn dump<P: AsRef<Path>>(fpath: P, master_pass: &str, store: Store) -> anyhow::Result<()> {
     create_new_file_if_not_exists(&fpath, master_pass)?;
     let encrypted_file = std::fs::read(&fpath)?;
     let salt = &encrypted_file[..16];
     let cipher = get_cipher(master_pass, salt);
     let nonce = &encrypted_file[16..28];
-    let plain_text = serde_json::to_string(&data)?;
+    let plain_text = serde_json::to_string(&store)?;
     let encrypted_text = cipher
         .encrypt(nonce.into(), plain_text.as_ref())
         .map_err(|_| anyhow::anyhow!("Failed to encrypt passwords."))?;
@@ -52,7 +51,8 @@ fn create_new_file_if_not_exists<P: AsRef<Path>>(
 ) -> anyhow::Result<()> {
     if !fpath.as_ref().exists() {
         let salt = get_random_salt()?;
-        let (empty_json, nonce) = encrypt_contents("[]", master_pass, &salt)?;
+        let (empty_json, nonce) =
+            encrypt_contents(&serde_json::to_string(&Store::new())?, master_pass, &salt)?;
         let mut content = salt.to_vec();
         content.extend(nonce);
         content.extend(empty_json);
