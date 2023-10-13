@@ -14,12 +14,17 @@ const LOGO: &'static str = r#"
 "#;
 
 const HELP: &'static str = r#"
-Add, Update and Delete:
-    set gmail user = sussolini pass = 'use single quote for spaces' url = mail.google.sus
+Add, Update:
+    set gmail user = sussolini sensitive pass = 'use single quote for spaces' url = mail.google.sus
     set gmail pass = updatedpassword
+
+Delete whole record: 
     del gmail
 
-Show:
+Delete fields: 
+    del gmail url pass
+
+Show -- replaces sensitive values with *****:
     show all
     show gmail
     show user is sussolini and (pass contains sus or url matches '.*com')
@@ -27,6 +32,9 @@ Show:
 Show (filter by name):
     show $name contains mail
     show . contains mail
+
+Reveal -- works exactly like Show but doesn't respect sensitivity
+    reveal user is sussolini and (pass contains sus or url matches '.*com')
 "#;
 
 /// Royal Guard

@@ -61,10 +61,18 @@ impl<'text> Store {
         }
     }
 
-    pub fn del(&mut self, name: &str) -> Option<Record> {
+    pub fn remove(&mut self, name: &str) -> Option<Record> {
         let record = self.records.iter().find(|r| r.name == name).cloned();
         self.records.retain(|r| r.name != name);
         record
+    }
+
+    pub fn remove_attrs(&mut self, name: &str, attrs: &[&str]) -> Option<Record> {
+        if let Some(record) = self.records.iter_mut().find(|r| r.name == name) {
+            record.fields.retain(|f| !attrs.contains(&f.attr.as_str()));
+            return Some(record.clone());
+        }
+        None
     }
 }
 

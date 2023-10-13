@@ -18,7 +18,10 @@ pub fn eval<'text>(text: &'text str, store: &mut Store) -> Result<Vec<Record>, E
             store.set(name, assignments);
             Ok(vec![])
         }
-        Cmd::Del { name } => Ok(Vec::from_iter(store.del(name))),
+        Cmd::Del { name, attrs } => match attrs.as_slice() {
+            [] => Ok(Vec::from_iter(store.remove(name))),
+            attrs => Ok(Vec::from_iter(store.remove_attrs(name, attrs))),
+        },
         Cmd::Show(query) => {
             let mut records = store.get(query);
 
@@ -205,7 +208,10 @@ mod tests {
 
         check!(&mut store, "delete discord", [] as [String; 0]);
 
-        eval!(&mut store, "set discord url = discord.com");
+        eval!(
+            &mut store,
+            "set discord user = doubledragon url = discord.com"
+        );
 
         check!(
             &mut store,
@@ -213,7 +219,18 @@ mod tests {
             ["'gmail' url='mail.google.com'"]
         );
 
-        check!(&mut store, "show all", ["'discord' url='discord.com'"]);
+        check!(
+            &mut store,
+            "show all",
+            ["'discord' url='discord.com' user='doubledragon'"]
+        );
+
+        check!(&mut store, "delete gmail user pass", [] as [String; 0]);
+        check!(
+            &mut store,
+            "delete discord user pass",
+            ["'discord' url='discord.com'"]
+        );
     }
 
     #[test]

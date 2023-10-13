@@ -5,7 +5,7 @@ use regex::Regex;
 use crate::lex::*;
 
 // <cmd> ::= set <value> {<assign>}*
-//         | del <value>
+//         | del <value> {<attr>}*
 //         | show <query>
 //         | history <value>
 
@@ -47,6 +47,7 @@ pub enum Cmd<'text> {
     },
     Del {
         name: &'text str,
+        attrs: Vec<&'text str>,
     },
     Show(Query<'text>),
     Reveal(Query<'text>),
@@ -113,6 +114,16 @@ fn parse_cmd_del<'text>(
     tokens: &[Token<'text>],
     pos: usize,
 ) -> Result<(Cmd<'text>, usize), ParseError<'text>> {
+    fn parse_attr<'text>(
+        tokens: &[Token<'text>],
+        pos: usize,
+    ) -> Result<(&'text str, usize), ParseError<'text>> {
+        match tokens.get(pos) {
+            Some(Token::Value(attr)) => Ok((attr, pos + 1)),
+            _ => Err(ParseError::ExpectedAttr(pos)),
+        }
+    }
+
     let (Some(Token::Keyword("del")) | Some(Token::Keyword("delete"))) = tokens.get(pos) else {
         return Err(ParseError::ExpectedOneOf(
             vec![Token::Keyword("del"), Token::Keyword("delete")],
@@ -124,7 +135,9 @@ fn parse_cmd_del<'text>(
         return Err(ParseError::ExpectedValue(pos + 1));
     };
 
-    Ok((Cmd::Del { name }, pos + 2))
+    let (attrs, pos) = many(tokens, pos + 2, parse_attr);
+
+    Ok((Cmd::Del { name, attrs }, pos))
 }
 
 fn parse_cmd_show<'text>(
@@ -468,7 +481,14 @@ impl<'text> Display for Cmd<'text> {
                 }
                 Ok(())
             }
-            Cmd::Del { name } => write!(f, "del '{}'", name),
+            Cmd::Del { name, attrs } => {
+                write!(f, "del '{}'", name)?;
+                if !attrs.is_empty() {
+                    write!(f, " ")?;
+                    write_arr(f, &attrs, " ")?;
+                }
+                Ok(())
+            }
             Cmd::Show(q) => write!(f, "show {}", q),
             Cmd::Reveal(q) => write!(f, "reveal {}", q),
             Cmd::History { name } => write!(f, "history {}", name),
@@ -622,6 +642,7 @@ mod tests {
     fn test_cmd_del() {
         check!(parse_cmd, "del 'gmail'");
         check!(parse_cmd, "delete 'gmail'", "del 'gmail'");
+        check!(parse_cmd, "del 'gmail' user pass");
     }
 
     #[test]
