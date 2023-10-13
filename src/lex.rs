@@ -12,7 +12,7 @@ lazy_static! {
     static ref KEYWORD_REGEX: Regex =
         Regex::new(r#"^(set|del|delete|show|reveal|copy|history|import|secret|sensitive|all|prev|and|or|contains|matches|like|is)\b"#)
             .unwrap();
-    static ref VALUE_REGEX: Regex = Regex::new(r#"^([^'\n\s\t\(\)]+|'[^'\n]+')"#).unwrap();
+    static ref VALUE_REGEX: Regex = Regex::new(r#"^([^'\n\s\t\(\)]+|'[^'\n]*')"#).unwrap();
 }
 
 #[derive(Debug)]
@@ -112,7 +112,7 @@ mod tests {
         set del delete show reveal copy history import secret sensitive 
         all prev and or contains matches like is
         name user pass url
-        (=)'🦀🦀🦀''N' look_mom   no_spaces   'oh wow spaces'
+        (=)'🦀🦀🦀''N''' look_mom   no_spaces   'oh wow spaces'
         (zahash)('zahash')
         "#;
 
@@ -149,6 +149,7 @@ mod tests {
                     Symbol(")"),
                     Value("🦀🦀🦀"),
                     Value("N"),
+                    Value(""),
                     Value("look_mom"),
                     Value("no_spaces"),
                     Value("oh wow spaces"),
