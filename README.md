@@ -35,7 +35,7 @@ Show (filter by name):
     show $name contains mail
     show . contains mail
 
-Reveal -- works exactly like Show but doesn't respect sensitivity
+Reveal -- works exactly like Show but doesnt respect sensitivity
     reveal user is sussolini and (pass contains sus or url matches '.*com')
 
 Copy field to clipboard:
