@@ -422,11 +422,12 @@ mod tests {
             ["'sus' note='this is the latest' pass='potatus'"]
         );
         match eval("history sus", &mut store).unwrap().lines().as_slice() {
-            [h1, h2, h3, h4] => {
-                assert!(h1.contains("pass='potatus'"));
-                assert!(h2.contains("pass=*****"));
-                assert!(h3.contains("pass=***** user='pablo susscobar'"));
-                assert!(h4.contains("pass=***** user='benito sussolini'"));
+            [h1, h2, h3, h4, h5] => {
+                assert!(h1.ends_with("note='this is the latest' pass='potatus'"));
+                assert!(h2.ends_with("pass='potatus'"));
+                assert!(h3.ends_with("pass=*****"));
+                assert!(h4.ends_with("pass=***** user='pablo susscobar'"));
+                assert!(h5.ends_with("pass=***** user='benito sussolini'"));
             }
             _ => assert!(false),
         }

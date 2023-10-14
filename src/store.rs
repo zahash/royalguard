@@ -38,10 +38,7 @@ impl<'text> Store {
 
     pub fn set(&mut self, name: &'text str, assignments: Vec<Assign<'text>>) {
         let record = match self.records.iter_mut().find(|r| r.name == name) {
-            Some(r) => {
-                r.history.push(HistoryEntry::new(r.fields.clone()));
-                r
-            }
+            Some(r) => r,
             None => {
                 self.records.push(Record {
                     id: Uuid::new_v4(),
@@ -66,6 +63,10 @@ impl<'text> Store {
                 sensitive,
             });
         }
+
+        record
+            .history
+            .push(HistoryEntry::new(record.fields.clone()));
     }
 
     pub fn history(&self, name: &str) -> Vec<HistoryEntry> {
@@ -83,10 +84,10 @@ impl<'text> Store {
 
     pub fn remove_attrs(&mut self, name: &str, attrs: &[&str]) -> Option<Record> {
         if let Some(record) = self.records.iter_mut().find(|r| r.name == name) {
+            record.fields.retain(|f| !attrs.contains(&f.attr.as_str()));
             record
                 .history
                 .push(HistoryEntry::new(record.fields.clone()));
-            record.fields.retain(|f| !attrs.contains(&f.attr.as_str()));
             return Some(record.clone());
         }
         None
