@@ -7,7 +7,7 @@
 
 </div>
 
-> Ergonomic Command Line Password Manager. Forever Free.
+> Ergonomic Command Line Password Manager. Forever Free. Made with ❤️ using 🦀
 
 ## Download
 
