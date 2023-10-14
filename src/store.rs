@@ -1,5 +1,4 @@
-use std::fmt::Display;
-
+use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -39,12 +38,16 @@ impl<'text> Store {
 
     pub fn set(&mut self, name: &'text str, assignments: Vec<Assign<'text>>) {
         let record = match self.records.iter_mut().find(|r| r.name == name) {
-            Some(r) => r,
+            Some(r) => {
+                r.history.push(HistoryEntry::new(r.fields.clone()));
+                r
+            }
             None => {
                 self.records.push(Record {
                     id: Uuid::new_v4(),
                     name: name.to_string(),
                     fields: vec![],
+                    history: vec![],
                 });
                 self.records.last_mut().unwrap()
             }
@@ -65,6 +68,13 @@ impl<'text> Store {
         }
     }
 
+    pub fn history(&self, name: &str) -> Vec<HistoryEntry> {
+        match self.records.iter().find(|r| r.name == name) {
+            Some(record) => record.history.clone(),
+            None => vec![],
+        }
+    }
+
     pub fn remove(&mut self, name: &str) -> Option<Record> {
         let record = self.records.iter().find(|r| r.name == name).cloned();
         self.records.retain(|r| r.name != name);
@@ -73,6 +83,9 @@ impl<'text> Store {
 
     pub fn remove_attrs(&mut self, name: &str, attrs: &[&str]) -> Option<Record> {
         if let Some(record) = self.records.iter_mut().find(|r| r.name == name) {
+            record
+                .history
+                .push(HistoryEntry::new(record.fields.clone()));
             record.fields.retain(|f| !attrs.contains(&f.attr.as_str()));
             return Some(record.clone());
         }
@@ -85,6 +98,9 @@ pub struct Record {
     pub id: Uuid,
     pub name: String,
     pub fields: Vec<Field>,
+
+    #[serde(default)]
+    pub history: Vec<HistoryEntry>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -94,22 +110,17 @@ pub struct Field {
     pub sensitive: bool,
 }
 
-impl Display for Record {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "'{}'", self.name)?;
-
-        let mut fields = self.fields.clone();
-        fields.sort_by(|f1, f2| f1.attr.cmp(&f2.attr));
-
-        for field in fields {
-            write!(f, " {}", field)?;
-        }
-        Ok(())
-    }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HistoryEntry {
+    pub datetime: DateTime<Local>,
+    pub fields: Vec<Field>,
 }
 
-impl Display for Field {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}='{}'", self.attr, self.value)
+impl HistoryEntry {
+    pub fn new(fields: Vec<Field>) -> Self {
+        Self {
+            datetime: Local::now(),
+            fields,
+        }
     }
 }

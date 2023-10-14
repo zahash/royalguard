@@ -30,7 +30,6 @@ Show -- replaces sensitive values with *****:
     show user is sussolini and (pass contains sus or url matches '.*com')
 
 Show (filter by name):
-    show $name contains mail
     show . contains mail
 
 Reveal -- works exactly like Show but doesn't respect sensitivity
@@ -99,9 +98,9 @@ pub fn run() -> anyhow::Result<()> {
                 if !line.is_empty() {
                     editor.add_history_entry(&line)?;
                     match eval(&line, &mut store) {
-                        Ok(records) => {
-                            for r in records {
-                                println!("{}", r);
+                        Ok(eval) => {
+                            for line in eval.lines() {
+                                println!("{}", line)
                             }
                         }
                         Err(e) => eprintln!("!! {:?}", e),

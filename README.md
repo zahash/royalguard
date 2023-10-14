@@ -32,7 +32,6 @@ Show -- replaces sensitive values with *****:
     show user is sussolini and (pass contains sus or url matches '.*com')
 
 Show (filter by name):
-    show $name contains mail
     show . contains mail
 
 Reveal -- works exactly like Show but doesnt respect sensitivity

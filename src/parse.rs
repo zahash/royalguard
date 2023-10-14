@@ -590,20 +590,6 @@ impl<'text> Display for Is<'text> {
     }
 }
 
-// fn write_arr<T>(f: &mut std::fmt::Formatter<'_>, arr: &[T], sep: &str) -> std::fmt::Result
-// where
-//     T: Display,
-// {
-//     if let Some(item) = arr.get(0) {
-//         write!(f, "{}", item)?;
-//         for item in &arr[1..] {
-//             write!(f, "{}{}", sep, item)?;
-//         }
-//     }
-
-//     Ok(())
-// }
-
 impl<'text> From<And<'text>> for Or<'text> {
     fn from(value: And<'text>) -> Self {
         Or::And(value)

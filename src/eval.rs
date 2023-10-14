@@ -1,7 +1,9 @@
 use arboard::Clipboard;
+use ignorant::Ignore;
 
 use crate::lex::*;
 use crate::parse::*;
+use crate::store::HistoryEntry;
 use crate::store::Record;
 use crate::store::Store;
 
@@ -11,52 +13,118 @@ pub enum EvalError<'text> {
     ParseError(ParseError<'text>),
 }
 
-pub fn eval<'text>(text: &'text str, store: &mut Store) -> Result<Vec<Record>, EvalError<'text>> {
-    fn sensitize(record: &mut Record) {
-        for field in &mut record.fields {
-            if field.sensitive {
-                field.value = String::from("*****")
+pub enum Evaluation {
+    Set,
+    Del(Option<Record>),
+    Show(Vec<Record>),
+    Reveal(Vec<Record>),
+    Copy(bool),
+    History(Vec<HistoryEntry>),
+}
+
+impl Evaluation {
+    fn fmt_record(mut record: Record, sensitize: bool) -> String {
+        use std::fmt::Write;
+        let mut buf = String::new();
+
+        write!(buf, "'{}'", record.name).ignore();
+
+        record.fields.sort_by(|f1, f2| f1.attr.cmp(&f2.attr));
+
+        for field in record.fields {
+            match sensitize && field.sensitive {
+                true => write!(buf, " {}=*****", field.attr),
+                false => write!(buf, " {}='{}'", field.attr, field.value),
+            }
+            .ignore()
+        }
+
+        buf
+    }
+
+    fn fmt_history(mut history: HistoryEntry, sensitize: bool) -> String {
+        use std::fmt::Write;
+        let mut buf = String::new();
+
+        write!(buf, "({})", history.datetime.format("%Y-%m-%d %H:%M %:z")).ignore();
+
+        history.fields.sort_by(|f1, f2| f1.attr.cmp(&f2.attr));
+
+        for field in history.fields {
+            match sensitize && field.sensitive {
+                true => write!(buf, " {}=*****", field.attr),
+                false => write!(buf, " {}='{}'", field.attr, field.value),
+            }
+            .ignore()
+        }
+
+        buf
+    }
+
+    pub fn lines(self) -> Vec<String> {
+        match self {
+            Evaluation::Set => vec![],
+            Evaluation::Del(record) => match record {
+                Some(record) => vec![Evaluation::fmt_record(record, true)],
+                None => vec![],
+            },
+            Evaluation::Show(mut records) => {
+                records.sort_by(|r1, r2| r1.name.cmp(&r2.name));
+                records
+                    .into_iter()
+                    .map(|record| Evaluation::fmt_record(record, true))
+                    .collect()
+            }
+            Evaluation::Reveal(mut records) => {
+                records.sort_by(|r1, r2| r1.name.cmp(&r2.name));
+                records
+                    .into_iter()
+                    .map(|record| Evaluation::fmt_record(record, false))
+                    .collect()
+            }
+            Evaluation::Copy(status) => match status {
+                true => vec!["Copied!".into()],
+                false => vec!["Unable to Copy!".into()],
+            },
+            Evaluation::History(mut history) => {
+                history.sort_by(|h1, h2| h1.datetime.cmp(&h2.datetime).reverse());
+                history
+                    .into_iter()
+                    .map(|h| Evaluation::fmt_history(h, true))
+                    .collect()
             }
         }
     }
+}
 
+pub fn eval<'text>(text: &'text str, store: &mut Store) -> Result<Evaluation, EvalError<'text>> {
     let tokens = lex(text)?;
     let cmd = parse(&tokens)?;
 
     match cmd {
         Cmd::Set { name, assignments } => {
             store.set(name, assignments);
-            Ok(vec![])
+            Ok(Evaluation::Set)
         }
         Cmd::Del { name, attrs } => match attrs.as_slice() {
-            [] => Ok(Vec::from_iter(store.remove(name))),
-            attrs => Ok(Vec::from_iter(store.remove_attrs(name, attrs))),
+            [] => Ok(Evaluation::Del(store.remove(name))),
+            attrs => Ok(Evaluation::Del(store.remove_attrs(name, attrs))),
         },
-        Cmd::Show(query) => {
-            let mut records = store.get(query);
-
-            for record in &mut records {
-                sensitize(record);
-            }
-
-            Ok(records)
-        }
-        Cmd::Reveal(query) => Ok(store.get(query)),
+        Cmd::Show(query) => Ok(Evaluation::Show(store.get(query))),
+        Cmd::Reveal(query) => Ok(Evaluation::Reveal(store.get(query))),
         Cmd::Copy { name, attr } => {
-            if let Some(mut record) = store.get(Query::Name(name)).pop() {
+            if let Some(record) = store.get(Query::Name(name)).pop() {
                 if let Some(field) = record.fields.iter().find(|f| f.attr == attr) {
                     if let Ok(mut clipboard) = Clipboard::new() {
-                        if clipboard.set_text(field.value.clone()).is_ok() {
-                            record.fields.retain(|f| f.attr == attr);
-                            sensitize(&mut record);
-                            return Ok(vec![record]);
-                        }
+                        return Ok(Evaluation::Copy(
+                            clipboard.set_text(field.value.clone()).is_ok(),
+                        ));
                     }
                 }
             }
-            Ok(vec![])
+            Ok(Evaluation::Copy(false))
         }
-        Cmd::History { name: _ } => unimplemented!("history feature coming soon"),
+        Cmd::History { name } => Ok(Evaluation::History(store.history(name))),
         Cmd::Import(_) => unimplemented!("import feature coming soon"),
     }
 }
@@ -107,7 +175,7 @@ impl<'text> Cond<'text> for Filter<'text> {
 impl<'text> Cond<'text> for Contains<'text> {
     fn test(&self, data: &Record) -> bool {
         match self.attr {
-            "$name" | "." => data.name.contains(self.substr),
+            "." => data.name.contains(self.substr),
             attr => data
                 .fields
                 .iter()
@@ -120,7 +188,7 @@ impl<'text> Cond<'text> for Contains<'text> {
 impl<'text> Cond<'text> for Matches<'text> {
     fn test(&self, data: &Record) -> bool {
         match self.attr {
-            "$name" | "." => self.pat.find(&data.name).is_some(),
+            "." => self.pat.find(&data.name).is_some(),
             attr => data
                 .fields
                 .iter()
@@ -134,7 +202,7 @@ impl<'text> Cond<'text> for Matches<'text> {
 impl<'text> Cond<'text> for Is<'text> {
     fn test(&self, data: &Record) -> bool {
         match self.attr {
-            "$name" | "." => data.name == self.value,
+            "." => data.name == self.value,
             attr => data
                 .fields
                 .iter()
@@ -159,17 +227,13 @@ impl<'text> From<ParseError<'text>> for EvalError<'text> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::Local;
     use pretty_assertions::assert_eq;
 
     macro_rules! check {
         ($store:expr, $cmd:expr, $expected:expr) => {
-            $expected.sort();
-
-            let mut data = eval($cmd, &mut $store).expect(&format!("unable to eval {}", $cmd));
-            data.sort_by(|d1, d2| d1.name.cmp(&d2.name));
-            let data: Vec<String> = data.into_iter().map(|d| format!("{}", d)).collect();
-
-            assert_eq!(data, $expected);
+            let eval = eval($cmd, &mut $store).expect(&format!("unable to eval {}", $cmd));
+            assert_eq!(eval.lines(), $expected);
         };
     }
 
@@ -224,7 +288,10 @@ mod tests {
 
         check!(&mut store, "delete gmail", [] as [String; 0]);
 
-        eval!(&mut store, "set gmail url = mail.google.com");
+        eval!(
+            &mut store,
+            "set gmail url = mail.google.com sensitive pass = gpass"
+        );
 
         check!(&mut store, "delete discord", [] as [String; 0]);
 
@@ -236,7 +303,7 @@ mod tests {
         check!(
             &mut store,
             "delete gmail",
-            ["'gmail' url='mail.google.com'"]
+            ["'gmail' pass=***** url='mail.google.com'"]
         );
 
         check!(
@@ -313,11 +380,6 @@ mod tests {
         );
         check!(
             &mut store,
-            "show $name is sus",
-            ["'sus' name='potatus' user='sussolini'"]
-        );
-        check!(
-            &mut store,
             "show . is sus",
             ["'sus' name='potatus' user='sussolini'"]
         );
@@ -326,14 +388,14 @@ mod tests {
         check!(
             &mut store,
             "show sus",
-            ["'sus' name='potatus' pass='*****' user='sussolini'"]
+            ["'sus' name='potatus' pass=***** user='sussolini'"]
         );
 
         eval!(&mut store, "set sus sensitive user = sussolini");
         check!(
             &mut store,
             "show sus",
-            ["'sus' name='potatus' pass='*****' user='*****'"]
+            ["'sus' name='potatus' pass=***** user=*****"]
         );
         check!(
             &mut store,
@@ -343,21 +405,52 @@ mod tests {
     }
 
     #[test]
+    fn test_history() {
+        let mut store = Store::new();
+
+        eval!(
+            &mut store,
+            "set sus user = 'benito sussolini' sensitive pass = amogus"
+        );
+        eval!(&mut store, "set sus user = 'pablo susscobar'");
+        eval!(&mut store, "del sus user");
+        eval!(&mut store, "set sus pass = potatus");
+        eval!(&mut store, "set sus note = 'this is the latest'");
+
+        check!(
+            &mut store,
+            "show sus",
+            ["'sus' note='this is the latest' pass='potatus'"]
+        );
+        match eval("history sus", &mut store).unwrap().lines().as_slice() {
+            [h1, h2, h3, h4] => {
+                assert!(h1.contains("pass='potatus'"));
+                assert!(h2.contains("pass=*****"));
+                assert!(h3.contains("pass=***** user='pablo susscobar'"));
+                assert!(h4.contains("pass=***** user='benito sussolini'"));
+            }
+            _ => assert!(false),
+        }
+
+        check!(&mut store, "history blah", [] as [String; 0]);
+    }
+
+    #[test]
     fn test_copy() {
         let mut store = Store::new();
 
-        check!(&mut store, "copy gmail pass", [] as [String; 0]);
+        check!(&mut store, "copy gmail pass", ["Unable to Copy!"]);
 
         eval!(&mut store, "set gmail");
-        check!(&mut store, "copy gmail pass", [] as [String; 0]);
+        check!(&mut store, "copy gmail pass", ["Unable to Copy!"]);
 
         eval!(&mut store, "set gmail url = mail.google.com");
-        check!(&mut store, "copy gmail pass", [] as [String; 0]);
+        check!(&mut store, "copy gmail pass", ["Unable to Copy!"]);
 
         eval!(&mut store, "set gmail pass = gpass");
-        check!(&mut store, "copy gmail pass", ["'gmail' pass='gpass'"]);
+        check!(&mut store, "copy gmail pass", ["Copied!"]);
 
         eval!(&mut store, "set gmail sensitive pass = gpass");
-        check!(&mut store, "copy gmail pass", ["'gmail' pass='*****'"]);
+        check!(&mut store, "copy gmail pass", ["Copied!"]);
     }
 }
