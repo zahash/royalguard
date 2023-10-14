@@ -227,7 +227,6 @@ impl<'text> From<ParseError<'text>> for EvalError<'text> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::Local;
     use pretty_assertions::assert_eq;
 
     macro_rules! check {
