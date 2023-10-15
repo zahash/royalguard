@@ -18,7 +18,7 @@
 ```sh
 Add, Update:
     set gmail user = sussolini sensitive pass = 'use single quote for spaces' url = mail.google.sus
-    set gmail sensitive pass = updatedpassword
+    set gmail sensitive pass = updatedpassword user = updated_user
 
 Delete whole record: 
     del gmail
@@ -42,6 +42,13 @@ History -- show changes made overtime:
 
 Copy field to clipboard:
     copy gmail pass
+
+Import:
+    import 'path/to/file.txt'
+
+Importing requires the below data format. Each line being a new record
+'gmail' user = 'joseph ballin' sensitive pass = 'ни шагу назад, товарищи!'
+'discord' user = 'pablo susscobar' pass = 'plata o plomo'
 ```
 
 ## Meta
