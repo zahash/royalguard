@@ -224,12 +224,17 @@ impl<'text> Cond<'text> for Filter<'text> {
 impl<'text> Cond<'text> for Contains<'text> {
     fn test(&self, data: &Record) -> bool {
         match self.attr {
-            "." => data.name.contains(self.substr),
+            "." => data
+                .name
+                .to_lowercase()
+                .contains(&self.substr.to_lowercase()),
             attr => data
                 .fields
                 .iter()
                 .find(|f| f.attr == attr)
-                .map_or(false, |f| f.value.contains(self.substr)),
+                .map_or(false, |f| {
+                    f.value.to_lowercase().contains(&self.substr.to_lowercase())
+                }),
         }
     }
 }
@@ -395,7 +400,7 @@ mod tests {
         );
         check!(
             &mut store,
-            r#"show user contains ash and url matches '\.com'"#,
+            r#"show user contains AsH and url matches '\.com'"#,
             [
                 "'discord' pass='dpass123' url='discord.com' user='hazash'",
                 "'gmail' pass='pass123' url='mail.google.com' user='zahash'"
@@ -429,6 +434,11 @@ mod tests {
         check!(
             &mut store,
             "show . is sus",
+            ["'sus' name='potatus' user='sussolini'"]
+        );
+        check!(
+            &mut store,
+            "show . contains SUS",
             ["'sus' name='potatus' user='sussolini'"]
         );
 
