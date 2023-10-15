@@ -412,6 +412,7 @@ mod tests {
             "set sus user = 'benito sussolini' sensitive pass = amogus"
         );
         eval!(&mut store, "set sus user = 'pablo susscobar'");
+        eval!(&mut store, "set sus user = 'pablo susscobar'");
         eval!(&mut store, "del sus user");
         eval!(&mut store, "set sus pass = potatus");
         eval!(&mut store, "set sus note = 'this is the latest'");

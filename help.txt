@@ -18,8 +18,9 @@ cargo publish
 
 
 TODO:
-history
+import
 reveal history
-is =
 
-sensitize del output
+find a way to copy history attrs to clipboard. Maybe by providing index.
+
+is =

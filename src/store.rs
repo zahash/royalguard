@@ -64,9 +64,7 @@ impl<'text> Store {
             });
         }
 
-        record
-            .history
-            .push(HistoryEntry::new(record.fields.clone()));
+        record.update_history();
     }
 
     pub fn history(&self, name: &str) -> Vec<HistoryEntry> {
@@ -85,9 +83,7 @@ impl<'text> Store {
     pub fn remove_attrs(&mut self, name: &str, attrs: &[&str]) -> Option<Record> {
         if let Some(record) = self.records.iter_mut().find(|r| r.name == name) {
             record.fields.retain(|f| !attrs.contains(&f.attr.as_str()));
-            record
-                .history
-                .push(HistoryEntry::new(record.fields.clone()));
+            record.update_history();
             return Some(record.clone());
         }
         None
@@ -104,7 +100,23 @@ pub struct Record {
     pub history: Vec<HistoryEntry>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+impl Record {
+    pub fn update_history(&mut self) {
+        self.history.sort_by(|h1, h2| h1.datetime.cmp(&h2.datetime));
+        match self.history.last_mut() {
+            Some(history) => {
+                history.fields.sort_by(|f1, f2| f1.attr.cmp(&f2.attr));
+                self.fields.sort_by(|f1, f2| f1.attr.cmp(&f2.attr));
+                if history.fields != self.fields {
+                    self.history.push(HistoryEntry::new(self.fields.clone()))
+                }
+            }
+            None => self.history.push(HistoryEntry::new(self.fields.clone())),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Field {
     pub attr: String,
     pub value: String,
