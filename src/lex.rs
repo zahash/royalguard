@@ -112,7 +112,7 @@ mod tests {
         set del delete show reveal copy history import secret sensitive 
         all prev and or contains matches like is
         name user pass url
-        (=)'🦀🦀🦀''N''' look_mom   no_spaces   'oh wow spaces'
+        (=)'🦀🦀🦀''كلمة عربية مخيفة''N''' look_mom   no_spaces   'oh wow spaces'
         (zahash)('zahash')
         "#;
 
@@ -148,6 +148,7 @@ mod tests {
                     Symbol("="),
                     Symbol(")"),
                     Value("🦀🦀🦀"),
+                    Value("كلمة عربية مخيفة"),
                     Value("N"),
                     Value(""),
                     Value("look_mom"),
