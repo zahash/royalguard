@@ -30,7 +30,7 @@ Show -- replaces sensitive values with *****:
     show user is sussolini and (pass contains sus or url matches '.*com')
 
 Show (filter by name):
-    show . contains mail
+    show . contains gmail
 
 Reveal -- works exactly like Show but does not respect sensitivity
     reveal user is sussolini and (pass contains sus or url matches '.*com')
@@ -38,6 +38,9 @@ Reveal -- works exactly like Show but does not respect sensitivity
 History -- show changes made overtime:
     history gmail
     reveal history gmail
+
+Rename:
+    rename gmail gmail2
 
 Copy field to clipboard:
     copy gmail pass
