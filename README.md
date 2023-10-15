@@ -8,11 +8,13 @@
 ██║  ██║╚██████╔╝   ██║   ██║  ██║███████╗    ╚██████╔╝╚██████╔╝██║  ██║██║  ██║██████╔╝
 ╚═╝  ╚═╝ ╚═════╝    ╚═╝   ╚═╝  ╚═╝╚══════╝     ╚═════╝  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝ 
 ----------------------------------------------------------------------------------------
-Ergonomic Command Line Password Manager. Free Forever. Made with ❤️ using 🦀
+Secure Ergonomic Command Line Password Manager. Free Forever. Made with ❤️ using 🦀
 </pre>
 
 [![Crates.io](https://img.shields.io/crates/v/royalguard.svg)](https://crates.io/crates/royalguard)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+<img src="demo.gif"/>
 
 </div>
 

@@ -89,7 +89,7 @@ pub fn run() -> anyhow::Result<()> {
     println!("{}", LOGO);
     println!(env!("CARGO_PKG_VERSION"));
 
-    println!("type 'help' on usage instructions");
+    println!("type 'help' for usage instructions");
     println!("To Quit, press CTRL-C or CTRL-D or type 'exit' or 'quit' (all updates will be auto saved after quitting)");
     println!("type 'save' to save current updates manually");
 
