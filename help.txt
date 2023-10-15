@@ -18,5 +18,5 @@ cargo publish
 
 
 TODO:
-rename
+case insensistive contains
 find a way to copy history attrs to clipboard. Maybe by providing index.

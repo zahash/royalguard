@@ -13,6 +13,12 @@ pub struct Store {
     version: String,
 }
 
+pub enum RenameStatus {
+    OldNameNotFound,
+    NewNameAlreadyExists,
+    Successful,
+}
+
 impl<'text> Store {
     pub fn new() -> Self {
         Self {
@@ -65,6 +71,19 @@ impl<'text> Store {
         }
 
         record.update_history();
+    }
+
+    pub fn rename(&mut self, old: &str, new: &str) -> RenameStatus {
+        if self.records.iter().find(|r| r.name == new).is_some() {
+            return RenameStatus::NewNameAlreadyExists;
+        };
+
+        let Some(record) = self.records.iter_mut().find(|r| r.name == old) else {
+            return RenameStatus::OldNameNotFound;
+        };
+
+        record.name = new.into();
+        RenameStatus::Successful
     }
 
     pub fn history(&self, name: &str) -> Vec<HistoryEntry> {

@@ -6,6 +6,7 @@ use crate::lex::*;
 use crate::parse::*;
 use crate::store::HistoryEntry;
 use crate::store::Record;
+use crate::store::RenameStatus;
 use crate::store::Store;
 
 #[derive(Debug)]
@@ -15,7 +16,7 @@ pub enum EvalError<'text> {
     ImportError(anyhow::Error),
 }
 
-pub enum Evaluation {
+pub enum Evaluation<'text> {
     Set,
     Del(Option<Record>),
     Show(Vec<Record>),
@@ -24,9 +25,10 @@ pub enum Evaluation {
     History(Vec<HistoryEntry>),
     RevealHistory(Vec<HistoryEntry>),
     Import(usize),
+    Rename((RenameStatus, &'text str, &'text str)),
 }
 
-impl Evaluation {
+impl<'text> Evaluation<'text> {
     fn fmt_record(mut record: Record, sensitize: bool) -> String {
         use std::fmt::Write;
         let mut buf = String::new();
@@ -104,12 +106,20 @@ impl Evaluation {
                     .map(|h| Evaluation::fmt_history(h, false))
                     .collect()
             }
+            Evaluation::Rename((status, old, new)) => match status {
+                RenameStatus::OldNameNotFound => vec![format!("'{}' not found!", old)],
+                RenameStatus::NewNameAlreadyExists => vec![format!("'{}' already exists!", new)],
+                RenameStatus::Successful => vec!["Renamed!".into()],
+            },
             Evaluation::Import(nrecords) => vec![format!("imported {} records", nrecords)],
         }
     }
 }
 
-pub fn eval<'text>(text: &'text str, store: &mut Store) -> Result<Evaluation, EvalError<'text>> {
+pub fn eval<'text>(
+    text: &'text str,
+    store: &mut Store,
+) -> Result<Evaluation<'text>, EvalError<'text>> {
     let tokens = lex(text)?;
     let cmd = parse(&tokens)?;
 
@@ -138,6 +148,10 @@ pub fn eval<'text>(text: &'text str, store: &mut Store) -> Result<Evaluation, Ev
         }
         Cmd::History(name) => Ok(Evaluation::History(store.history(name))),
         Cmd::RevealHistory(name) => Ok(Evaluation::RevealHistory(store.history(name))),
+        Cmd::Rename(old, new) => {
+            let status = store.rename(old, new);
+            Ok(Evaluation::Rename((status, old, new)))
+        }
         Cmd::Import(fpath) => {
             let content =
                 std::fs::read_to_string(fpath).map_err(|e| EvalError::ImportError(anyhow!(e)))?;
@@ -487,6 +501,22 @@ mod tests {
             [h1] => assert!(h1.ends_with("pass='amogus' user='benito sussolini'")),
             _ => assert!(false),
         }
+    }
+
+    #[test]
+    fn test_rename() {
+        let mut store = Store::new();
+
+        check!(&mut store, "rename gmail discord", ["'gmail' not found!"]);
+
+        eval!(&mut store, "set discord");
+        check!(
+            &mut store,
+            "rename gmail discord",
+            ["'discord' already exists!"]
+        );
+
+        check!(&mut store, "rename discord discord2", ["Renamed!"]);
     }
 
     #[test]

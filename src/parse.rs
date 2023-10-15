@@ -10,6 +10,7 @@ use crate::lex::*;
 //         | reveal <query>
 //         | copy <name> <attr>
 //         | reveal? history <name>
+//         | rename <value> <value>
 //         | import <value>
 
 // <assign> ::= sensitive? <attr> = <value>
@@ -61,6 +62,7 @@ pub enum Cmd<'text> {
     },
     History(&'text str),
     RevealHistory(&'text str),
+    Rename(&'text str, &'text str),
     Import(&'text str),
 }
 
@@ -79,6 +81,7 @@ fn parse_cmd<'text>(
             Box::new(parse_cmd_copy),
             Box::new(parse_cmd_history),
             Box::new(parse_cmd_reveal_history),
+            Box::new(parse_cmd_rename),
             Box::new(parse_cmd_import),
         ],
         "cannot parse cmd",
@@ -226,6 +229,25 @@ fn parse_cmd_reveal_history<'text>(
     };
 
     Ok((Cmd::RevealHistory(name), pos + 3))
+}
+
+fn parse_cmd_rename<'text>(
+    tokens: &[Token<'text>],
+    pos: usize,
+) -> Result<(Cmd<'text>, usize), ParseError<'text>> {
+    let Some(Token::Keyword("rename")) = tokens.get(pos) else {
+        return Err(ParseError::Expected(Token::Keyword("rename"), pos));
+    };
+
+    let Some(Token::Value(old)) = tokens.get(pos + 1) else {
+        return Err(ParseError::ExpectedName(pos + 1));
+    };
+
+    let Some(Token::Value(new)) = tokens.get(pos + 2) else {
+        return Err(ParseError::ExpectedName(pos + 2));
+    };
+
+    Ok((Cmd::Rename(old, new), pos + 3))
 }
 
 fn parse_cmd_import<'text>(
@@ -539,6 +561,7 @@ impl<'text> Display for Cmd<'text> {
             Cmd::Copy { name, attr } => write!(f, "copy '{}' '{}'", name, attr),
             Cmd::History(name) => write!(f, "history '{}'", name),
             Cmd::RevealHistory(name) => write!(f, "reveal history '{}'", name),
+            Cmd::Rename(old, new) => write!(f, "rename '{}' '{}'", old, new),
             Cmd::Import(fpath) => write!(f, "import '{}'", fpath),
         }
     }
@@ -714,6 +737,11 @@ mod tests {
     fn test_cmd_history() {
         check!(parse_cmd, "history 'gmail'");
         check!(parse_cmd, "reveal history 'gmail'");
+    }
+
+    #[test]
+    fn test_cmd_rename() {
+        check!(parse_cmd, "rename 'gmail' 'discord'");
     }
 
     #[test]
