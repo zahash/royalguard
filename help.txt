@@ -18,9 +18,5 @@ cargo publish
 
 
 TODO:
-import
-reveal history
-
+rename
 find a way to copy history attrs to clipboard. Maybe by providing index.
-
-is =

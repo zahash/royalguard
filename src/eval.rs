@@ -22,6 +22,7 @@ pub enum Evaluation {
     Reveal(Vec<Record>),
     Copy(bool),
     History(Vec<HistoryEntry>),
+    RevealHistory(Vec<HistoryEntry>),
     Import(usize),
 }
 
@@ -96,6 +97,13 @@ impl Evaluation {
                     .map(|h| Evaluation::fmt_history(h, true))
                     .collect()
             }
+            Evaluation::RevealHistory(mut history) => {
+                history.sort_by(|h1, h2| h1.datetime.cmp(&h2.datetime).reverse());
+                history
+                    .into_iter()
+                    .map(|h| Evaluation::fmt_history(h, false))
+                    .collect()
+            }
             Evaluation::Import(nrecords) => vec![format!("imported {} records", nrecords)],
         }
     }
@@ -128,7 +136,8 @@ pub fn eval<'text>(text: &'text str, store: &mut Store) -> Result<Evaluation, Ev
             }
             Ok(Evaluation::Copy(false))
         }
-        Cmd::History { name } => Ok(Evaluation::History(store.history(name))),
+        Cmd::History(name) => Ok(Evaluation::History(store.history(name))),
+        Cmd::RevealHistory(name) => Ok(Evaluation::RevealHistory(store.history(name))),
         Cmd::Import(fpath) => {
             let content =
                 std::fs::read_to_string(fpath).map_err(|e| EvalError::ImportError(anyhow!(e)))?;
@@ -460,6 +469,24 @@ mod tests {
         }
 
         check!(&mut store, "history blah", [] as [String; 0]);
+    }
+
+    #[test]
+    fn test_reveal_history() {
+        let mut store = Store::new();
+
+        eval!(
+            &mut store,
+            "set sus user = 'benito sussolini' sensitive pass = amogus"
+        );
+        match eval("reveal history sus", &mut store)
+            .unwrap()
+            .lines()
+            .as_slice()
+        {
+            [h1] => assert!(h1.ends_with("pass='amogus' user='benito sussolini'")),
+            _ => assert!(false),
+        }
     }
 
     #[test]

@@ -39,6 +39,7 @@ Reveal -- works exactly like Show but does not respect sensitivity
 
 History -- show changes made overtime:
     history gmail
+    reveal history gmail
 
 Copy field to clipboard:
     copy gmail pass

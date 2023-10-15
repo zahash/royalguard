@@ -9,7 +9,7 @@ use crate::lex::*;
 //         | show <query>
 //         | reveal <query>
 //         | copy <name> <attr>
-//         | history <name>
+//         | reveal? history <name>
 //         | import <value>
 
 // <assign> ::= sensitive? <attr> = <value>
@@ -59,9 +59,8 @@ pub enum Cmd<'text> {
         name: &'text str,
         attr: &'text str,
     },
-    History {
-        name: &'text str,
-    },
+    History(&'text str),
+    RevealHistory(&'text str),
     Import(&'text str),
 }
 
@@ -79,6 +78,7 @@ fn parse_cmd<'text>(
             Box::new(parse_cmd_reveal),
             Box::new(parse_cmd_copy),
             Box::new(parse_cmd_history),
+            Box::new(parse_cmd_reveal_history),
             Box::new(parse_cmd_import),
         ],
         "cannot parse cmd",
@@ -206,7 +206,26 @@ fn parse_cmd_history<'text>(
         return Err(ParseError::ExpectedName(pos + 1));
     };
 
-    Ok((Cmd::History { name }, pos + 2))
+    Ok((Cmd::History(name), pos + 2))
+}
+
+fn parse_cmd_reveal_history<'text>(
+    tokens: &[Token<'text>],
+    pos: usize,
+) -> Result<(Cmd<'text>, usize), ParseError<'text>> {
+    let Some(Token::Keyword("reveal")) = tokens.get(pos) else {
+        return Err(ParseError::Expected(Token::Keyword("reveal"), pos));
+    };
+
+    let Some(Token::Keyword("history")) = tokens.get(pos + 1) else {
+        return Err(ParseError::Expected(Token::Keyword("history"), pos + 1));
+    };
+
+    let Some(Token::Value(name)) = tokens.get(pos + 2) else {
+        return Err(ParseError::ExpectedName(pos + 2));
+    };
+
+    Ok((Cmd::RevealHistory(name), pos + 3))
 }
 
 fn parse_cmd_import<'text>(
@@ -518,7 +537,8 @@ impl<'text> Display for Cmd<'text> {
             Cmd::Show(q) => write!(f, "show {}", q),
             Cmd::Reveal(q) => write!(f, "reveal {}", q),
             Cmd::Copy { name, attr } => write!(f, "copy '{}' '{}'", name, attr),
-            Cmd::History { name } => write!(f, "history '{}'", name),
+            Cmd::History(name) => write!(f, "history '{}'", name),
+            Cmd::RevealHistory(name) => write!(f, "reveal history '{}'", name),
             Cmd::Import(fpath) => write!(f, "import '{}'", fpath),
         }
     }
@@ -688,6 +708,12 @@ mod tests {
             "reveal user is 'a' and user contains 'a' or user matches 'a'",
             "reveal ((user is 'a' and user contains 'a') or user matches 'a')"
         );
+    }
+
+    #[test]
+    fn test_cmd_history() {
+        check!(parse_cmd, "history 'gmail'");
+        check!(parse_cmd, "reveal history 'gmail'");
     }
 
     #[test]
