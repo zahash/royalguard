@@ -27,7 +27,7 @@ ignorant = { version = "0.1" }
 
 [dev-dependencies]
 pretty_assertions = { version = "1" }
-# tempfile = { version = "3" }
+tempfile = { version = "3" }
 
 # The profile that 'cargo dist' will build with
 [profile.dist]

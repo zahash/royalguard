@@ -4,7 +4,7 @@ use regex::Regex;
 #[derive(Debug, PartialEq)]
 pub enum Token<'text> {
     Keyword(&'text str),
-    Symbol(&'text str),
+    Symbol(&'static str),
     Value(&'text str),
 }
 
@@ -111,6 +111,9 @@ mod tests {
         let src = r#"
         set del delete show reveal copy history import secret sensitive 
         all prev and or contains matches like is
+
+        setter revealed
+
         name user pass url
         (=)'🦀🦀🦀''كلمة عربية مخيفة''N''' look_mom   no_spaces   'oh wow spaces'
         (zahash)('zahash')
@@ -140,6 +143,8 @@ mod tests {
                     Keyword("matches"),
                     Keyword("like"),
                     Keyword("is"),
+                    Value("setter"),
+                    Value("revealed"),
                     Value("name"),
                     Value("user"),
                     Value("pass"),

@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use arboard::Clipboard;
 use ignorant::Ignore;
 
@@ -11,6 +12,7 @@ use crate::store::Store;
 pub enum EvalError<'text> {
     LexError(LexError),
     ParseError(ParseError<'text>),
+    ImportError(anyhow::Error),
 }
 
 pub enum Evaluation {
@@ -20,6 +22,7 @@ pub enum Evaluation {
     Reveal(Vec<Record>),
     Copy(bool),
     History(Vec<HistoryEntry>),
+    Import(usize),
 }
 
 impl Evaluation {
@@ -93,6 +96,7 @@ impl Evaluation {
                     .map(|h| Evaluation::fmt_history(h, true))
                     .collect()
             }
+            Evaluation::Import(nrecords) => vec![format!("imported {} records", nrecords)],
         }
     }
 }
@@ -125,7 +129,29 @@ pub fn eval<'text>(text: &'text str, store: &mut Store) -> Result<Evaluation, Ev
             Ok(Evaluation::Copy(false))
         }
         Cmd::History { name } => Ok(Evaluation::History(store.history(name))),
-        Cmd::Import(_) => unimplemented!("import feature coming soon"),
+        Cmd::Import(fpath) => {
+            let content =
+                std::fs::read_to_string(fpath).map_err(|e| EvalError::ImportError(anyhow!(e)))?;
+
+            for (line_idx, line) in content.lines().enumerate() {
+                if line.trim().is_empty() {
+                    continue;
+                }
+
+                let cmd = String::from("set ") + line;
+
+                if let Err(e) = eval(&cmd, store) {
+                    return Err(EvalError::ImportError(anyhow!(
+                        "{:?} line number: [{}] {}",
+                        e,
+                        line_idx + 1,
+                        line,
+                    )));
+                }
+            }
+
+            Ok(Evaluation::Import(content.lines().count()))
+        }
     }
 }
 
@@ -453,5 +479,64 @@ mod tests {
 
         eval!(&mut store, "set gmail sensitive pass = gpass");
         check!(&mut store, "copy gmail pass", ["Copied!"]);
+    }
+
+    #[test]
+    fn test_import() {
+        use std::io::Write;
+
+        fn import(store: &mut Store, contents: &'static str) {
+            let mut file = tempfile::NamedTempFile::new().unwrap();
+            write!(file, "{}", contents).unwrap();
+            let cmd = format!("import {}", file.path().to_str().unwrap());
+            eval!(store, &cmd);
+        }
+
+        let mut store = Store::new();
+
+        import(&mut store, "");
+        check!(&mut store, "show all", [] as [String; 0]);
+
+        import(
+            &mut store,
+            r#"
+            'gmail' user = ligma pass = balls
+            'gmail' user = ligma pass = balls
+            'gmail' user = ligma pass = balls
+            'gmail' user = ligma pass = balls
+            'gmail' user = 'benito sussolini' pass = 'joseph ballin'
+            'gmail' user = 'benito sussolini' pass = 'joseph ballin'
+            'gmail' user = 'benito sussolini' pass = 'joseph ballin'
+            'discord' user = 'dorito breath' pass = 'kitten'
+            'discord' user = 'dorito breath' pass = 'kitten'
+            "#,
+        );
+        check!(
+            &mut store,
+            "show all",
+            [
+                "'discord' pass='kitten' user='dorito breath'",
+                "'gmail' pass='joseph ballin' user='benito sussolini'"
+            ]
+        );
+        match eval("history gmail", &mut store)
+            .unwrap()
+            .lines()
+            .as_slice()
+        {
+            [h1, h2] => {
+                assert!(h1.ends_with("pass='joseph ballin' user='benito sussolini'"));
+                assert!(h2.ends_with("pass='balls' user='ligma'"));
+            }
+            _ => assert!(false),
+        }
+        match eval("history discord", &mut store)
+            .unwrap()
+            .lines()
+            .as_slice()
+        {
+            [h1] => assert!(h1.ends_with("pass='kitten' user='dorito breath'")),
+            _ => assert!(false),
+        }
     }
 }
