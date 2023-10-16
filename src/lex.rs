@@ -10,9 +10,9 @@ pub enum Token<'text> {
 
 lazy_static! {
     static ref KEYWORD_REGEX: Regex =
-        Regex::new(r#"^(set|del|delete|show|reveal|copy|history|rename|import|secret|sensitive|all|prev|and|or|contains|matches|like|is)\b"#)
+        Regex::new(r"^(set|del|delete|show|reveal|copy|history|rename|import|secret|sensitive|all|prev|and|or|contains|matches|like|is)\b")
             .unwrap();
-    static ref VALUE_REGEX: Regex = Regex::new(r#"^([^'\n\s\t\(\)]+|'[^'\n]*')"#).unwrap();
+    static ref VALUE_REGEX: Regex = Regex::new(r"^([^'\n\s\t\(\)]+|'[^'\n]*')").unwrap();
 }
 
 #[derive(Debug)]
@@ -62,10 +62,10 @@ fn lex_keyword(text: &str, pos: usize) -> Option<(Token, usize)> {
 
 fn lex_value(text: &str, pos: usize) -> Option<(Token, usize)> {
     let (mut token, pos) = lex_with_pattern(text, pos, &VALUE_REGEX)?;
-    if let Some(stripped) = token.strip_prefix("'") {
+    if let Some(stripped) = token.strip_prefix('\'') {
         token = stripped;
     }
-    if let Some(stripped) = token.strip_suffix("'") {
+    if let Some(stripped) = token.strip_suffix('\'') {
         token = stripped;
     }
 

@@ -74,7 +74,7 @@ impl<'text> Store {
     }
 
     pub fn rename(&mut self, old: &str, new: &str) -> RenameStatus {
-        if self.records.iter().find(|r| r.name == new).is_some() {
+        if self.records.iter().any(|r| r.name == new) {
             return RenameStatus::NewNameAlreadyExists;
         };
 

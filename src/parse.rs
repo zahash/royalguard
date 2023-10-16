@@ -38,9 +38,9 @@ pub enum ParseError<'text> {
 }
 
 pub fn parse<'text>(tokens: &[Token<'text>]) -> Result<Cmd<'text>, ParseError<'text>> {
-    let (cmd, pos) = parse_cmd(&tokens, 0)?;
+    let (cmd, pos) = parse_cmd(tokens, 0)?;
     match pos < tokens.len() {
-        true => Err(ParseError::IncompleteParse(pos).into()),
+        true => Err(ParseError::IncompleteParse(pos)),
         false => Ok(cmd),
     }
 }

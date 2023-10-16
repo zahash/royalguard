@@ -5,7 +5,7 @@ use anyhow::Context;
 use clap::Parser;
 use rustyline::error::ReadlineError;
 
-const LOGO: &'static str = r#"
+const LOGO: &str = r#"
 ██████   ██████  ██    ██  █████  ██           ██████  ██    ██  █████  ██████  ██████  
 ██   ██ ██    ██  ██  ██  ██   ██ ██          ██       ██    ██ ██   ██ ██   ██ ██   ██ 
 ██████  ██    ██   ████   ███████ ██          ██   ███ ██    ██ ███████ ██████  ██   ██ 
@@ -13,7 +13,7 @@ const LOGO: &'static str = r#"
 ██   ██  ██████     ██    ██   ██ ███████      ██████   ██████  ██   ██ ██   ██ ██████  
 "#;
 
-const HELP: &'static str = r#"
+const HELP: &str = r#"
 Add, Update:
     set gmail user = sussolini sensitive pass = 'use single quote for spaces' url = mail.google.sus
     set gmail sensitive pass = updatedpassword user = updated_user
@@ -55,7 +55,7 @@ Importing requires the below data format. Each line being a new record
 
 /// Royal Guard
 #[derive(Parser)]
-struct CLI {
+struct Cli {
     /// encrypted data filepath
     #[arg(short, long)]
     fpath: Option<String>,
@@ -70,7 +70,7 @@ fn default_fpath() -> anyhow::Result<String> {
 }
 
 pub fn run() -> anyhow::Result<()> {
-    let fpath = match CLI::parse().fpath {
+    let fpath = match Cli::parse().fpath {
         Some(f) => f,
         None => default_fpath()?,
     };

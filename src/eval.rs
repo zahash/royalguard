@@ -11,9 +11,9 @@ use crate::store::Store;
 
 #[derive(Debug)]
 pub enum EvalError<'text> {
-    LexError(LexError),
-    ParseError(ParseError<'text>),
-    ImportError(anyhow::Error),
+    Lex(LexError),
+    Parse(ParseError<'text>),
+    Import(anyhow::Error),
 }
 
 pub enum Evaluation<'text> {
@@ -154,7 +154,7 @@ pub fn eval<'text>(
         }
         Cmd::Import(fpath) => {
             let content =
-                std::fs::read_to_string(fpath).map_err(|e| EvalError::ImportError(anyhow!(e)))?;
+                std::fs::read_to_string(fpath).map_err(|e| EvalError::Import(anyhow!(e)))?;
 
             for (line_idx, line) in content.lines().enumerate() {
                 if line.trim().is_empty() {
@@ -164,7 +164,7 @@ pub fn eval<'text>(
                 let cmd = String::from("set ") + line;
 
                 if let Err(e) = eval(&cmd, store) {
-                    return Err(EvalError::ImportError(anyhow!(
+                    return Err(EvalError::Import(anyhow!(
                         "{:?} line number: [{}] {}",
                         e,
                         line_idx + 1,
@@ -268,13 +268,13 @@ impl<'text> Cond<'text> for Is<'text> {
 
 impl<'text> From<LexError> for EvalError<'text> {
     fn from(value: LexError) -> Self {
-        EvalError::LexError(value)
+        EvalError::Lex(value)
     }
 }
 
 impl<'text> From<ParseError<'text>> for EvalError<'text> {
     fn from(value: ParseError<'text>) -> Self {
-        EvalError::ParseError(value)
+        EvalError::Parse(value)
     }
 }
 
