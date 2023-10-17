@@ -1,5 +1,6 @@
 use crate::crypt::*;
 use crate::eval::*;
+use crate::store::Store;
 
 use anyhow::Context;
 use clap::Parser;
@@ -51,6 +52,8 @@ Import:
 Importing requires the below data format. Each line being a new record
 'gmail' user = 'joseph ballin' sensitive pass = 'ни шагу назад, товарищи!'
 'discord' user = 'pablo susscobar' pass = 'plata o plomo'
+
+Change Master Password: cmp
 "#;
 
 /// Royal Guard
@@ -67,6 +70,14 @@ fn default_fpath() -> anyhow::Result<String> {
     )?;
     fpath.push("royalguard");
     Ok(fpath.to_string_lossy().to_string())
+}
+
+fn save(fpath: &str, master_pass: &str, store: Store) {
+    println!("saving to '{}' ...", fpath);
+    match dump(fpath, master_pass, store) {
+        Ok(_) => println!("saved successfully!"),
+        Err(e) => eprintln!("!! error while saving: {:?}", e),
+    }
 }
 
 pub fn run() -> anyhow::Result<()> {
@@ -94,24 +105,18 @@ pub fn run() -> anyhow::Result<()> {
     println!("type 'save' to save current updates manually");
 
     loop {
-        match editor.readline("> ") {
-            Ok(s) if s == "clear" || s == "cls" => editor.clear_screen()?,
-            Ok(s) if s == "help" || s == "HELP" => println!("{}", HELP),
-            Ok(s) if s == "exit" || s == "quit" => {
-                println!("saving to '{}' ...", &fpath);
-                dump(&fpath, &master_pass, store)?;
-                println!("saved successfully!");
+        match editor.readline("> ").as_deref() {
+            Ok("clear") | Ok("cls") => editor.clear_screen()?,
+            Ok("help") | Ok("HELP") => println!("{}", HELP),
+            Ok("exit") | Ok("quit") => {
+                save(&fpath, &master_pass, store);
                 break;
             }
-            Ok(s) if s == "save" => {
-                println!("saving to '{}' ...", &fpath);
-                dump(&fpath, &master_pass, store.clone())?;
-                println!("saved successfully!");
-            }
+            Ok("save") => save(&fpath, &master_pass, store.clone()),
             Ok(line) => {
                 if !line.is_empty() {
-                    editor.add_history_entry(&line)?;
-                    match eval(&line, &mut store) {
+                    editor.add_history_entry(line)?;
+                    match eval(line, &mut store) {
                         Ok(eval) => {
                             for line in eval.lines() {
                                 println!("{}", line)
@@ -122,21 +127,17 @@ pub fn run() -> anyhow::Result<()> {
                 }
             }
             Err(ReadlineError::Interrupted) => {
-                println!("CTRL-C");
-                println!("saving to '{}' ...", &fpath);
-                dump(&fpath, &master_pass, store)?;
-                println!("saved successfully!");
+                eprintln!("CTRL-C");
+                save(&fpath, &master_pass, store);
                 break;
             }
             Err(ReadlineError::Eof) => {
-                println!("CTRL-D");
-                println!("saving to '{}' ...", &fpath);
-                dump(&fpath, &master_pass, store)?;
-                println!("saved successfully!");
+                eprintln!("CTRL-D");
+                save(&fpath, &master_pass, store);
                 break;
             }
-            Err(err) => {
-                println!("Unexpected Error: {:?}", err);
+            Err(e) => {
+                eprintln!("!! Unexpected Error: {:?}", e);
                 break;
             }
         }
