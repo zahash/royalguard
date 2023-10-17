@@ -198,6 +198,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
+name = "chainchomp"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "69d3ba1fa8df4cd0be5d7a9ee07f802d93798996e41f91bcc8bb08852193af0e"
+
+[[package]]
 name = "chrono"
 version = "0.4.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -948,6 +954,7 @@ dependencies = [
  "aes-gcm",
  "anyhow",
  "arboard",
+ "chainchomp",
  "chrono",
  "clap",
  "dirs",

@@ -23,7 +23,9 @@ serde_json = "1"
 dirs = "5"
 arboard = "3.2"
 chrono = { version = "0.4", features = ["serde"] }
+
 ignorant = { version = "0.1" }
+chainchomp = { version = "0.1" }
 
 [dev-dependencies]
 pretty_assertions = { version = "1" }

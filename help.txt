@@ -18,6 +18,5 @@ cargo publish
 
 
 TODO:
-change master password
 find a way to copy history attrs to clipboard. Maybe by providing index.
 generate random password

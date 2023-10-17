@@ -1,5 +1,6 @@
 use std::{collections::HashSet, fmt::Display};
 
+use chainchomp::{combine_parsers, many, SyntaxError};
 use regex::Regex;
 
 use crate::lex::*;
@@ -332,7 +333,7 @@ fn parse_or<'text>(
     pos: usize,
 ) -> Result<(Or<'text>, usize), ParseError<'text>> {
     let (lhs, mut pos) = parse_and(tokens, pos)?;
-    let mut lhs = lhs.into();
+    let mut lhs = Or::And(lhs);
     while let Some(token) = tokens.get(pos) {
         match token {
             Token::Keyword("or") => {
@@ -356,7 +357,7 @@ fn parse_and<'text>(
     pos: usize,
 ) -> Result<(And<'text>, usize), ParseError<'text>> {
     let (lhs, mut pos) = parse_filter(tokens, pos)?;
-    let mut lhs = lhs.into();
+    let mut lhs = And::Filter(lhs);
     while let Some(token) = tokens.get(pos) {
         match token {
             Token::Keyword("and") => {
@@ -486,56 +487,9 @@ fn parse_is<'text>(
     Ok((Is { attr, value }, pos + 3))
 }
 
-fn many<'text, Ast>(
-    tokens: &[Token<'text>],
-    mut pos: usize,
-    parser: impl Fn(&[Token<'text>], usize) -> Result<(Ast, usize), ParseError<'text>>,
-) -> (Vec<Ast>, usize) {
-    let mut list = vec![];
-
-    while let Ok((ast, next_pos)) = parser(tokens, pos) {
-        list.push(ast);
-        pos = next_pos;
-    }
-
-    (list, pos)
-}
-
-trait Parser<'text, Ast> {
-    fn parse(&self, tokens: &[Token<'text>], pos: usize)
-        -> Result<(Ast, usize), ParseError<'text>>;
-}
-
-fn combine_parsers<'text, Ast>(
-    tokens: &[Token<'text>],
-    pos: usize,
-    parsers: &[Box<dyn Parser<'text, Ast>>],
-    msg: &'static str,
-) -> Result<(Ast, usize), ParseError<'text>> {
-    for parser in parsers {
-        match parser.parse(tokens, pos) {
-            Ok((ast, pos)) => return Ok((ast, pos)),
-            Err(_) => continue,
-        };
-    }
-
-    Err(ParseError::SyntaxError(pos, msg))
-}
-
-impl<'text, ParsedValue, F, Ast> Parser<'text, Ast> for F
-where
-    ParsedValue: Into<Ast>,
-    F: Fn(&[Token<'text>], usize) -> Result<(ParsedValue, usize), ParseError<'text>>,
-{
-    fn parse(
-        &self,
-        tokens: &[Token<'text>],
-        pos: usize,
-    ) -> Result<(Ast, usize), ParseError<'text>> {
-        match self(tokens, pos) {
-            Ok((val, pos)) => Ok((val.into(), pos)),
-            Err(e) => Err(e),
-        }
+impl<'text> SyntaxError<&'static str> for ParseError<'text> {
+    fn syntax_error(pos: usize, msg: &'static str) -> Self {
+        Self::SyntaxError(pos, msg)
     }
 }
 
@@ -630,18 +584,6 @@ impl<'text> Display for Matches<'text> {
 impl<'text> Display for Is<'text> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} is '{}'", self.attr, self.value)
-    }
-}
-
-impl<'text> From<And<'text>> for Or<'text> {
-    fn from(value: And<'text>) -> Self {
-        Or::And(value)
-    }
-}
-
-impl<'text> From<Filter<'text>> for And<'text> {
-    fn from(value: Filter<'text>) -> Self {
-        And::Filter(value)
     }
 }
 
