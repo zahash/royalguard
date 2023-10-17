@@ -4,6 +4,7 @@ use ignorant::Ignore;
 
 use crate::lex::*;
 use crate::parse::*;
+use crate::store::Field;
 use crate::store::HistoryEntry;
 use crate::store::Record;
 use crate::store::RenameStatus;
@@ -29,42 +30,38 @@ pub enum Evaluation<'text> {
 }
 
 impl<'text> Evaluation<'text> {
-    fn fmt_record(mut record: Record, sensitize: bool) -> String {
+    fn fmt_record(record: Record, sensitize: bool) -> String {
         use std::fmt::Write;
+
         let mut buf = String::new();
-
         write!(buf, "'{}'", record.name).ignore();
-
-        record.fields.sort_by(|f1, f2| f1.attr.cmp(&f2.attr));
-
-        for field in record.fields {
-            match sensitize && field.sensitive {
-                true => write!(buf, " {}=*****", field.attr),
-                false => write!(buf, " {}='{}'", field.attr, field.value),
-            }
-            .ignore()
-        }
+        Self::fmt_fields(record.fields, sensitize, &mut buf);
 
         buf
     }
 
-    fn fmt_history(mut history: HistoryEntry, sensitize: bool) -> String {
+    fn fmt_history(history: HistoryEntry, sensitize: bool) -> String {
         use std::fmt::Write;
+
         let mut buf = String::new();
-
         write!(buf, "({})", history.datetime.format("%Y-%m-%d %H:%M %:z")).ignore();
+        Self::fmt_fields(history.fields, sensitize, &mut buf);
 
-        history.fields.sort_by(|f1, f2| f1.attr.cmp(&f2.attr));
+        buf
+    }
 
-        for field in history.fields {
+    fn fmt_fields(mut fields: Vec<Field>, sensitize: bool, buf: &mut String) {
+        use std::fmt::Write;
+
+        fields.sort_by(|f1, f2| f1.attr.cmp(&f2.attr));
+
+        for field in fields {
             match sensitize && field.sensitive {
                 true => write!(buf, " {}=*****", field.attr),
                 false => write!(buf, " {}='{}'", field.attr, field.value),
             }
             .ignore()
         }
-
-        buf
     }
 
     pub fn lines(self) -> Vec<String> {
