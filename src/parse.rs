@@ -1,6 +1,6 @@
 use std::{collections::HashSet, fmt::Display};
 
-use chainchomp::{combine_parsers, many, SyntaxError};
+use chainchomp::ctx_free::{combine_parsers, many};
 use regex::Regex;
 
 use crate::lex::*;
@@ -85,7 +85,7 @@ fn parse_cmd<'text>(
             Box::new(parse_cmd_rename),
             Box::new(parse_cmd_import),
         ],
-        "cannot parse cmd",
+        ParseError::SyntaxError(pos, "cannot parse cmd"),
     )
 }
 
@@ -405,7 +405,7 @@ fn parse_filter<'text>(
             Box::new(parse_matches),
             Box::new(parse_is),
         ],
-        "cannot parse filter",
+        ParseError::SyntaxError(pos, "cannot parse filter"),
     )
 }
 
@@ -485,12 +485,6 @@ fn parse_is<'text>(
     };
 
     Ok((Is { attr, value }, pos + 3))
-}
-
-impl<'text> SyntaxError<&'static str> for ParseError<'text> {
-    fn syntax_error(pos: usize, msg: &'static str) -> Self {
-        Self::SyntaxError(pos, msg)
-    }
 }
 
 impl<'text> Display for Cmd<'text> {
