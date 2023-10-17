@@ -28,13 +28,13 @@ pub fn load<P: AsRef<Path>>(fpath: P, master_pass: &str) -> anyhow::Result<Store
     Ok(serde_json::from_str::<Store>(&plain_text)?)
 }
 
-pub fn dump<P: AsRef<Path>>(fpath: P, master_pass: &str, store: Store) -> anyhow::Result<()> {
+pub fn dump<P: AsRef<Path>>(fpath: P, master_pass: &str, store: &Store) -> anyhow::Result<()> {
     create_new_file_if_not_exists(&fpath, master_pass)?;
     let encrypted_file = std::fs::read(&fpath)?;
     let salt = &encrypted_file[..16];
     let cipher = get_cipher(master_pass, salt);
     let nonce = &encrypted_file[16..28];
-    let plain_text = serde_json::to_string(&store)?;
+    let plain_text = serde_json::to_string(store)?;
     let encrypted_text = cipher
         .encrypt(nonce.into(), plain_text.as_ref())
         .map_err(|_| anyhow::anyhow!("Failed to encrypt passwords."))?;

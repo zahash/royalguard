@@ -53,7 +53,7 @@ Importing requires the below data format. Each line being a new record
 'gmail' user = 'joseph ballin' sensitive pass = 'ни шагу назад, товарищи!'
 'discord' user = 'pablo susscobar' pass = 'plata o plomo'
 
-Change Master Password: cmp
+Change Master Password: chmpw
 "#;
 
 /// Royal Guard
@@ -72,7 +72,7 @@ fn default_fpath() -> anyhow::Result<String> {
     Ok(fpath.to_string_lossy().to_string())
 }
 
-fn save(fpath: &str, master_pass: &str, store: Store) {
+fn save(fpath: &str, master_pass: &str, store: &Store) {
     println!("saving to '{}' ...", fpath);
     match dump(fpath, master_pass, store) {
         Ok(_) => println!("saved successfully!"),
@@ -89,7 +89,7 @@ pub fn run() -> anyhow::Result<()> {
     println!(env!("CARGO_PKG_VERSION"));
     println!("All data will be saved to file '{}'", fpath);
 
-    let Ok(master_pass) = rpassword::prompt_password("master password: ") else {
+    let Ok(mut master_pass) = rpassword::prompt_password("master password: ") else {
         println!("Bye!");
         return Ok(());
     };
@@ -109,10 +109,35 @@ pub fn run() -> anyhow::Result<()> {
             Ok("clear") | Ok("cls") => editor.clear_screen()?,
             Ok("help") | Ok("HELP") => println!("{}", HELP),
             Ok("exit") | Ok("quit") => {
-                save(&fpath, &master_pass, store);
+                save(&fpath, &master_pass, &store);
                 break;
             }
-            Ok("save") => save(&fpath, &master_pass, store.clone()),
+            Ok("save") => save(&fpath, &master_pass, &store),
+            Ok("chmpw") => {
+                let pw = match rpassword::prompt_password("new master password: ") {
+                    Ok(pw) if !pw.trim().is_empty() => pw,
+                    _ => {
+                        println!("abort!");
+                        continue;
+                    }
+                };
+
+                let pw2 = match rpassword::prompt_password("retype new master password: ") {
+                    Ok(pw2) if !pw2.trim().is_empty() => pw2,
+                    _ => {
+                        println!("abort!");
+                        continue;
+                    }
+                };
+
+                if pw != pw2 {
+                    println!("!! passwords didn't match");
+                    continue;
+                }
+
+                master_pass = pw;
+                println!("master password changed successfully!");
+            }
             Ok(line) => {
                 if !line.is_empty() {
                     editor.add_history_entry(line)?;
@@ -128,12 +153,12 @@ pub fn run() -> anyhow::Result<()> {
             }
             Err(ReadlineError::Interrupted) => {
                 eprintln!("CTRL-C");
-                save(&fpath, &master_pass, store);
+                save(&fpath, &master_pass, &store);
                 break;
             }
             Err(ReadlineError::Eof) => {
                 eprintln!("CTRL-D");
-                save(&fpath, &master_pass, store);
+                save(&fpath, &master_pass, &store);
                 break;
             }
             Err(e) => {

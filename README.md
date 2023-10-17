@@ -68,6 +68,8 @@ Import:
 Importing requires the below data format. Each line being a new record
 'gmail' user = 'joseph ballin' sensitive pass = 'ни шагу назад, товарищи!'
 'discord' user = 'pablo susscobar' pass = 'plata o plomo'
+
+Change Master Password: chmpw
 ```
 
 ## Meta
