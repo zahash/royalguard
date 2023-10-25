@@ -87,7 +87,7 @@ impl<'text> Evaluation<'text> {
             }
             Evaluation::Copy(status) => match status {
                 true => vec!["Copied!".into()],
-                false => vec!["Unable to Copy!".into()],
+                false => vec!["Unable to Copy! Try Again!".into()],
             },
             Evaluation::History(mut history) => {
                 history.sort_by(|h1, h2| h1.datetime.cmp(&h2.datetime).reverse());
@@ -530,13 +530,13 @@ mod tests {
     fn test_copy() {
         let mut store = Store::new();
 
-        check!(&mut store, "copy gmail pass", ["Unable to Copy!"]);
+        check!(&mut store, "copy gmail pass", ["Unable to Copy! Try Again!"]);
 
         eval!(&mut store, "set gmail");
-        check!(&mut store, "copy gmail pass", ["Unable to Copy!"]);
+        check!(&mut store, "copy gmail pass", ["Unable to Copy! Try Again!"]);
 
         eval!(&mut store, "set gmail url = mail.google.com");
-        check!(&mut store, "copy gmail pass", ["Unable to Copy!"]);
+        check!(&mut store, "copy gmail pass", ["Unable to Copy! Try Again!"]);
 
         eval!(&mut store, "set gmail pass = gpass");
         check!(&mut store, "copy gmail pass", ["Copied!"]);
