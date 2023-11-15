@@ -16,7 +16,7 @@ Secure Ergonomic Command Line Password Manager. Free Forever. Made with ❤️ u
 
 </div>
 
-## Download
+## 🚀 Download
 
 [https://github.com/zahash/royalguard/releases](https://github.com/zahash/royalguard/releases)
 
@@ -26,51 +26,51 @@ Secure Ergonomic Command Line Password Manager. Free Forever. Made with ❤️ u
 cargo install royalguard
 ```
 
-## Usage examples
+## 🧑‍💻 Unleash the Commands!
 
 ```sh
-Add, Update:
+✨ Add, Update:
     set gmail user = sussolini sensitive pass = 'use single quote for spaces' url = mail.google.sus
     set gmail sensitive pass = updatedpassword user = updated_user
 
-Delete whole record: 
+🔥 Delete whole record: 
     del gmail
 
-Delete fields: 
+🔥 Delete fields: 
     del gmail url pass
 
-Show -- replaces sensitive values with *****:
+🔍 Show -- replaces sensitive values with *****:
     show all
     show gmail
     show user is sussolini and (pass contains sus or url matches '.*com')
 
-Show (filter by name):
+🔍 Show (filter by name):
     show . contains gmail
 
-Reveal -- works exactly like Show but does not respect sensitivity
+🕵️ Reveal -- works exactly like Show but does not respect sensitivity
     reveal user is sussolini and (pass contains sus or url matches '.*com')
 
-History -- show changes made overtime:
+📜 History -- show changes made overtime:
     history gmail
     reveal history gmail
 
-Rename:
+🖊️ Rename:
     rename gmail gmail2
 
-Copy field to clipboard:
+📋 Copy field to clipboard:
     copy gmail pass
 
-Import:
+📥 Import:
     import 'path/to/file.txt'
 
 Importing requires the below data format. Each line being a new record
 'gmail' user = 'joseph ballin' sensitive pass = 'ни шагу назад, товарищи!'
 'discord' user = 'pablo susscobar' pass = 'plata o plomo'
 
-Change Master Password: chmpw
+🔐 Change Master Password: chmpw
 ```
 
-## Meta
+## 🌟 Connect with Us
 
 M. Zahash – zahash.z@gmail.com
 
@@ -78,7 +78,7 @@ Distributed under the MIT license. See `LICENSE` for more information.
 
 [https://github.com/zahash/](https://github.com/zahash/)
 
-## Contributing
+## 🤝 Contribute to RoyalGuard!
 
 1. Fork it (<https://github.com/zahash/royalguard/fork>)
 2. Create your feature branch (`git checkout -b feature/fooBar`)
@@ -86,3 +86,8 @@ Distributed under the MIT license. See `LICENSE` for more information.
 4. Push to the branch (`git push origin feature/fooBar`)
 5. Create a new Pull Request
 
+## 🌟 Show Some Love!
+
+If RoyalGuard makes your life easier, consider giving it a star on GitHub. 🌟 [Star RoyalGuard](https://github.com/zahash/royalguard/stargazers)
+
+Thank you for choosing RoyalGuard - Your Secure and Ergonomic Password Manager! 🛡️🚀
