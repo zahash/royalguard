@@ -1,6 +1,6 @@
 [package]
 name = "royalguard"
-version = "0.4.6"
+version = "0.4.7"
 edition = "2021"
 authors = ["Zahash <zahash.z@gmail.com>"]
 description = "Secure Ergonomic Command Line Password Manager. Free Forever. Made with ❤️ using 🦀"
