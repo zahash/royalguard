@@ -86,8 +86,8 @@ Distributed under the MIT license. See `LICENSE` for more information.
 4. Push to the branch (`git push origin feature/fooBar`)
 5. Create a new Pull Request
 
-## 🌟 Show Some Love!
+## ❤️ Show Some Love!
 
-If RoyalGuard makes your life easier, consider giving it a star on GitHub. 🌟 [Star RoyalGuard](https://github.com/zahash/royalguard/stargazers)
+If RoyalGuard makes your life easier, consider giving it a [🌟 on GitHub!](https://github.com/zahash/royalguard/stargazers)
 
 Thank you for choosing RoyalGuard - Your Secure and Ergonomic Password Manager! 🛡️🚀
