@@ -20,3 +20,7 @@ cargo publish
 TODO:
 find a way to copy history attrs to clipboard. Maybe by providing index.
 generate random password
+
+add support for arm64
+ctrl-c ctrl-d support for master password change
+don't store whole password data in memory. only store required/queried.
